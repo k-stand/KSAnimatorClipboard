@@ -1,14 +1,14 @@
 {
-    "name": "io.github.kiriumestand.xxxxxxxxxxxxxxxx",
-    "displayName": "XXXXXXXXXXXXXXXX",
-    "version": "x.y.z",
+    "name": "io.github.kiriumestand.animatorclipboard",
+    "displayName": "Animator Clipboard",
+    "version": "0.1.0",
     "unity": "2022.3",
-    "description": "VCCパッケージのリポジトリのテンプレート",
+    "description": "アニメーター関連のデータをコピペする機能を提供するライブラリ",
     "author": {
         "name": "KiriumeStand",
-        "url": "https://github.com/KiriumeStand/xxxxxxxxxxxxxxxx"
+        "url": "https://github.com/KiriumeStand/AnimatorClipboard"
     },
-    "license": "XXXX",
+    "license": "MIT",
     "repo": "https://kiriumestand.github.io/vpm-repos/index.json",
     "url": "",
     "vpmDependencies": {}
