@@ -1,0 +1,15 @@
+{
+    "name": "io.github.kiriumestand.xxxxxxxxxxxxxxxx",
+    "displayName": "XXXXXXXXXXXXXXXX",
+    "version": "x.y.z",
+    "unity": "2022.3",
+    "description": "VCCパッケージのリポジトリのテンプレート",
+    "author": {
+        "name": "KiriumeStand",
+        "url": "https://github.com/KiriumeStand/xxxxxxxxxxxxxxxx"
+    },
+    "license": "XXXX",
+    "repo": "https://kiriumestand.github.io/vpm-repos/index.json",
+    "url": "",
+    "vpmDependencies": {}
+}
