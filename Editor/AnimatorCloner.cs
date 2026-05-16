@@ -47,6 +47,11 @@ namespace io.github.kiriumestand.animatorclipboard.editor
 
         private bool GetOrCreateCloneInstance<T>(T orig, out T cloneIns) where T : new()
         {
+            if (orig == null || orig is null)
+            {
+                cloneIns = default;
+                return false;
+            }
             if (CloneMap.TryGetValue(orig, out object outObj) && outObj is T clone)
             {
                 cloneIns = clone;
@@ -78,9 +83,9 @@ namespace io.github.kiriumestand.animatorclipboard.editor
             return objs.Select(obj => CloneObject(obj)).ToArray();
         }
 
-        internal T CloneObject<T>(T obj) => CloneObject(obj);
+        internal T CloneObject<T>(T obj) => (T)CloneObjectInternal(obj);
 
-        internal object CloneObject(object obj) => obj switch
+        internal object CloneObjectInternal(object obj) => obj switch
         {
             AnimatorController castedObj => CloneAnimatorController(castedObj),
             AnimatorControllerParameter castedObj => CloneAnimatorControllerParameter(castedObj),
@@ -102,6 +107,8 @@ namespace io.github.kiriumestand.animatorclipboard.editor
             bool isCreated = GetOrCreateCloneInstance(ac, out AnimatorController cloneAC);
             if (!isCreated) return cloneAC;
 
+            cloneAC.hideFlags = ac.hideFlags;
+
             cloneAC.parameters = CloneAnimatorControllerParameters(ac.parameters);
             cloneAC.layers = CloneAnimatorControllerLayers(ac.layers);
 
@@ -120,7 +127,7 @@ namespace io.github.kiriumestand.animatorclipboard.editor
                 defaultBool = acp.defaultBool,
                 defaultFloat = acp.defaultFloat,
                 defaultInt = acp.defaultInt,
-                name = acp.name,
+                name = GetCloneObjName(acp.name),
                 type = acp.type
             };
         }
@@ -138,7 +145,7 @@ namespace io.github.kiriumestand.animatorclipboard.editor
                 blendingMode = acl.blendingMode,
                 defaultWeight = acl.defaultWeight,
                 iKPass = acl.iKPass,
-                name = acl.name,
+                name = GetCloneObjName(acl.name),
                 syncedLayerAffectsTiming = acl.syncedLayerAffectsTiming,
                 syncedLayerIndex = acl.syncedLayerIndex,
                 stateMachine = CloneAnimatorStateMachine(acl.stateMachine)
@@ -182,10 +189,12 @@ namespace io.github.kiriumestand.animatorclipboard.editor
             bool isCreated = GetOrCreateCloneInstance(asm, out AnimatorStateMachine cloneASM);
             if (!isCreated) return cloneASM;
 
+            cloneASM.hideFlags = asm.hideFlags;
+
             cloneASM.anyStatePosition = asm.anyStatePosition;
             cloneASM.entryPosition = asm.entryPosition;
             cloneASM.exitPosition = asm.exitPosition;
-            cloneASM.name = asm.name;
+            cloneASM.name = GetCloneObjName(asm.name);
             cloneASM.parentStateMachinePosition = asm.parentStateMachinePosition;
 
             cloneASM.states = CloneChildAnimatorStates(asm.states);
@@ -194,6 +203,15 @@ namespace io.github.kiriumestand.animatorclipboard.editor
 
             cloneASM.entryTransitions = CloneAnimatorTransitions(asm.entryTransitions);
             cloneASM.anyStateTransitions = CloneAnimatorStateTransitions(asm.anyStateTransitions);
+            foreach (ChildAnimatorStateMachine curCASM in asm.stateMachines)
+            {
+                AnimatorStateMachine cloneStateMachine = CloneAnimatorStateMachine(curCASM.stateMachine);
+
+                AnimatorTransition[] transitions = asm.GetStateMachineTransitions(curCASM.stateMachine);
+                AnimatorTransition[] cloneTransitions = CloneAnimatorTransitions(transitions);
+
+                cloneASM.SetStateMachineTransitions(cloneStateMachine, cloneTransitions);
+            }
 
             cloneASM.behaviours = CloneStateMachineBehaviours(asm.behaviours);
 
@@ -221,6 +239,8 @@ namespace io.github.kiriumestand.animatorclipboard.editor
             bool isCreated = GetOrCreateCloneInstance(aState, out AnimatorState cloneAS);
             if (!isCreated) return cloneAS;
 
+            cloneAS.hideFlags = aState.hideFlags;
+
             cloneAS.cycleOffset = aState.cycleOffset;
             cloneAS.cycleOffsetParameter = aState.cycleOffsetParameter;
             cloneAS.cycleOffsetParameterActive = aState.cycleOffsetParameterActive;
@@ -229,7 +249,7 @@ namespace io.github.kiriumestand.animatorclipboard.editor
             cloneAS.mirrorParameter = aState.mirrorParameter;
             cloneAS.mirrorParameterActive = aState.mirrorParameterActive;
             cloneAS.motion = aState.motion;
-            cloneAS.name = aState.name;
+            cloneAS.name = GetCloneObjName(aState.name);
             cloneAS.speed = aState.speed;
             cloneAS.speedParameter = aState.speedParameter;
             cloneAS.speedParameterActive = aState.speedParameterActive;
@@ -255,9 +275,11 @@ namespace io.github.kiriumestand.animatorclipboard.editor
             bool isCreated = GetOrCreateCloneInstance(at, out AnimatorTransition cloneAT);
             if (!isCreated) return cloneAT;
 
+            cloneAT.hideFlags = at.hideFlags;
+
             cloneAT.isExit = at.isExit;
             cloneAT.mute = at.mute;
-            cloneAT.name = at.name;
+            cloneAT.name = GetCloneObjName(at.name);
             cloneAT.solo = at.solo;
             cloneAT.destinationState = CloneAnimatorState(at.destinationState);
             cloneAT.destinationStateMachine = CloneAnimatorStateMachine(at.destinationStateMachine);
@@ -276,6 +298,8 @@ namespace io.github.kiriumestand.animatorclipboard.editor
             bool isCreated = GetOrCreateCloneInstance(ast, out AnimatorStateTransition cloneAST);
             if (!isCreated) return cloneAST;
 
+            cloneAST.hideFlags = ast.hideFlags;
+
             cloneAST.canTransitionToSelf = ast.canTransitionToSelf;
             cloneAST.duration = ast.duration;
             cloneAST.exitTime = ast.exitTime;
@@ -284,7 +308,7 @@ namespace io.github.kiriumestand.animatorclipboard.editor
             cloneAST.interruptionSource = ast.interruptionSource;
             cloneAST.isExit = ast.isExit;
             cloneAST.mute = ast.mute;
-            cloneAST.name = ast.name;
+            cloneAST.name = GetCloneObjName(ast.name);
             cloneAST.offset = ast.offset;
             cloneAST.orderedInterruption = ast.orderedInterruption;
             cloneAST.solo = ast.solo;
@@ -316,6 +340,11 @@ namespace io.github.kiriumestand.animatorclipboard.editor
             EditorUtility.CopySerialized(smb, cloneSMB);
 
             return cloneSMB;
+        }
+
+        internal string GetCloneObjName(string origName)
+        {
+            return string.IsNullOrEmpty(origName) ? "" : origName + " (Clone)";
         }
     }
 }

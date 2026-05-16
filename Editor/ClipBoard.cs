@@ -1,14 +1,15 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using UnityEditor;
 using UnityEditor.Animations;
 using UnityEngine;
 
 namespace io.github.kiriumestand.animatorclipboard.editor
 {
-    public class ClipBoard
+    public static class ClipBoard
     {
-        public void Paste(ClipSet clipSet, AnimatorController destAnimatorController)
+        public static void Paste(ClipSet clipSet, AnimatorController destAnimatorController)
         {
             if (clipSet.Type != ClipSet.ClipSetType.Layers)
             {
@@ -16,7 +17,7 @@ namespace io.github.kiriumestand.animatorclipboard.editor
             }
 
             AnimatorCloner cloner = new();
-            var castedClips = (Clip<AnimatorControllerLayer>[])clipSet.Clips;
+            var castedClips = clipSet.Clips.Select(c => (Clip<AnimatorControllerLayer>)c).ToArray();
             foreach (Clip<AnimatorControllerLayer> clip in castedClips)
             {
                 cloner.AddRangeCloneWhiteList(AnimatorClipboardUtility.ListupInLayer(clip.ClipObject));
@@ -37,17 +38,24 @@ namespace io.github.kiriumestand.animatorclipboard.editor
                 }
             }
 
+            string destAssetPath = AssetDatabase.GetAssetPath(destAnimatorController);
+
             List<AnimatorControllerLayer> layerList = new(destAnimatorController.layers);
             layerList.AddRange(cloneLayers);
             destAnimatorController.layers = layerList.ToArray();
+
+            if (destAssetPath != "")
+            {
+                cloneLayers.ToList().ForEach(x => AnimatorClipboardUtility.AddObjectToAssetRecursively(x.stateMachine, destAssetPath));
+            }
         }
 
-        public void Paste(ClipSet clipSet, AnimatorControllerLayer destLayer)
+        public static void Paste(ClipSet clipSet, AnimatorControllerLayer destLayer)
         {
             Paste(clipSet, destLayer.stateMachine);
         }
 
-        public void Paste(ClipSet clipSet, AnimatorStateMachine destStateMachine)
+        public static void Paste(ClipSet clipSet, AnimatorStateMachine destStateMachine)
         {
             if (clipSet.Type != ClipSet.ClipSetType.ChildState &&
                 clipSet.Type != ClipSet.ClipSetType.ChildStateMachine &&
@@ -90,11 +98,11 @@ namespace io.github.kiriumestand.animatorclipboard.editor
                 cloner.AddRangeReferenceHoldingList(AnimatorClipboardUtility.ListupInStateMachineObjectsAndSelf(destStateMachine));
             }
 
+            // クリップとそのデータのクローン
             List<Clip<ChildAnimatorState>> cloneChildAnimatorState = new();
             List<Clip<ChildAnimatorStateMachine>> cloneChildAnimatorStateMachine = new();
             List<Clip<AnimatorTransition>> cloneAnimatorTransition = new();
             List<Clip<AnimatorStateTransition>> cloneAnimatorStateTransition = new();
-
             foreach (ClipBase clip in clipSet.Clips)
             {
                 switch (clip)
@@ -114,32 +122,74 @@ namespace io.github.kiriumestand.animatorclipboard.editor
                 }
             }
 
-            List<object> pastedObjs = new();
-            foreach (Clip<ChildAnimatorState> cloneClip in cloneChildAnimatorState)
-            {
-                if (!destStateMachine.states.Contains(cloneClip.ClipObject))
-                {
-                    destStateMachine.states = new List<ChildAnimatorState>(destStateMachine.states) { cloneClip.ClipObject }.ToArray();
-                    pastedObjs.Add(cloneClip.ClipObject);
-                }
-            }
-
+            // ペースト処理
+            string destAssetPath = AssetDatabase.GetAssetPath(destStateMachine);
+            List<UnityEngine.Object> pastedObjs = new();
             foreach (Clip<ChildAnimatorStateMachine> cloneClip in cloneChildAnimatorStateMachine)
             {
                 if (!destStateMachine.stateMachines.Contains(cloneClip.ClipObject))
                 {
                     destStateMachine.stateMachines = new List<ChildAnimatorStateMachine>(destStateMachine.stateMachines) { cloneClip.ClipObject }.ToArray();
-                    pastedObjs.Add(cloneClip.ClipObject);
+                    if (destAssetPath != "")
+                    {
+                        pastedObjs.AddRange(AnimatorClipboardUtility.AddObjectToAssetRecursively(cloneClip.ClipObject.stateMachine, destAssetPath));
+                    }
+                }
+            }
+
+            foreach (Clip<ChildAnimatorState> cloneClip in cloneChildAnimatorState)
+            {
+                if (!destStateMachine.states.Contains(cloneClip.ClipObject))
+                {
+                    destStateMachine.states = new List<ChildAnimatorState>(destStateMachine.states) { cloneClip.ClipObject }.ToArray();
+                    if (destAssetPath != "")
+                    {
+                        pastedObjs.AddRange(AnimatorClipboardUtility.AddObjectToAssetRecursively(cloneClip.ClipObject.state, destAssetPath));
+                    }
                 }
             }
 
             foreach (Clip<AnimatorTransition> cloneClip in cloneAnimatorTransition)
             {
-                if (!destStateMachine.entryTransitions.Contains(cloneClip.ClipObject) &&
-                    cloneClip.ClipObject != null)
+                if (cloneClip.ClipObject.destinationState == null && cloneClip.ClipObject.destinationStateMachine == null && !cloneClip.ClipObject.isExit)
                 {
-                    destStateMachine.entryTransitions = new List<AnimatorTransition>(destStateMachine.entryTransitions) { cloneClip.ClipObject }.ToArray();
-                    pastedObjs.Add(cloneClip.ClipObject);
+                    // Transition先が設定できていないなら
+                    continue;
+                }
+
+                if (cloneClip.TryGetContext(ClipBase.ContextKey.PropertyName, out object objPropName))
+                {
+                    string propName = (string)objPropName;
+
+                    // 元がm_StateMachineTransitionsに登録されていたものなら同様に設定する
+                    if (propName == ClipBase.ContextValue.PropertyName.m_StateMachineTransitions &&
+                        cloneClip.TryGetContext(ClipBase.ContextKey.Parent, out object parent) &&
+                        destStateMachine.stateMachines.Select(x => x.stateMachine).Contains(parent))
+                    {
+                        AnimatorTransition[] smTranss = destStateMachine.GetStateMachineTransitions((AnimatorStateMachine)parent);
+                        if (!smTranss.Contains(cloneClip.ClipObject))
+                        {
+                            AnimatorTransition[] newSMTranss = new List<AnimatorTransition>(smTranss) { cloneClip.ClipObject }.ToArray();
+                            destStateMachine.SetStateMachineTransitions((AnimatorStateMachine)parent, newSMTranss);
+                            if (AnimatorClipboardUtility.CheckAndAddObjectToAsset(cloneClip.ClipObject, destAssetPath))
+                            {
+                                pastedObjs.Add(cloneClip.ClipObject);
+                            }
+                            continue;
+                        }
+                    }
+
+                    // 元がEntryTransitionなら同様に登録する
+                    if (propName == ClipBase.ContextValue.PropertyName.m_EntryTransitions &&
+                        !destStateMachine.entryTransitions.Contains(cloneClip.ClipObject))
+                    {
+                        destStateMachine.entryTransitions = new List<AnimatorTransition>(destStateMachine.entryTransitions) { cloneClip.ClipObject }.ToArray();
+                        if (AnimatorClipboardUtility.CheckAndAddObjectToAsset(cloneClip.ClipObject, destAssetPath))
+                        {
+                            pastedObjs.Add(cloneClip.ClipObject);
+                        }
+                        continue;
+                    }
                 }
             }
 
@@ -153,22 +203,41 @@ namespace io.github.kiriumestand.animatorclipboard.editor
 
                 if (cloneClip.TryGetContext(ClipBase.ContextKey.Parent, out object parent) && parent != null)
                 {
-                    switch (parent)
+                    if (parent is AnimatorState parentState)
                     {
-                        case AnimatorState parentState:
-                            if (!parentState.transitions.Contains(cloneClip.ClipObject))
-                            {
-                                parentState.transitions = new List<AnimatorStateTransition>(parentState.transitions) { cloneClip.ClipObject }.ToArray();
-                            }
-                            pastedObjs.Contains(cloneClip.ClipObject);
-                            break;
-                        case AnimatorStateMachine parentStateMachine:
-                            if (!parentStateMachine.anyStateTransitions.Contains(cloneClip.ClipObject))
-                            {
-                                parentStateMachine.anyStateTransitions = new List<AnimatorStateTransition>(parentStateMachine.anyStateTransitions) { cloneClip.ClipObject }.ToArray();
-                            }
-                            pastedObjs.Contains(cloneClip.ClipObject);
-                            break;
+                        if (!parentState.transitions.Contains(cloneClip.ClipObject))
+                        {
+                            parentState.transitions = new List<AnimatorStateTransition>(parentState.transitions) { cloneClip.ClipObject }.ToArray();
+                        }
+
+                        if (AnimatorClipboardUtility.CheckAndAddObjectToAsset(cloneClip.ClipObject, destAssetPath))
+                        {
+                            pastedObjs.Add(cloneClip.ClipObject);
+                        }
+                    }
+                    else if (parent is AnimatorStateMachine parentStateMachine)
+                    {
+                        if (!parentStateMachine.anyStateTransitions.Contains(cloneClip.ClipObject))
+                        {
+                            parentStateMachine.anyStateTransitions = new List<AnimatorStateTransition>(parentStateMachine.anyStateTransitions) { cloneClip.ClipObject }.ToArray();
+                        }
+
+                        if (AnimatorClipboardUtility.CheckAndAddObjectToAsset(cloneClip.ClipObject, destAssetPath))
+                        {
+                            pastedObjs.Add(cloneClip.ClipObject);
+                        }
+                    }
+                }
+                else if (cloneClip.TryGetContext(ClipBase.ContextKey.PropertyName, out object propName) && (string)propName == ClipBase.ContextValue.PropertyName.m_AnyStateTransitions)
+                {
+                    if (!destStateMachine.anyStateTransitions.Contains(cloneClip.ClipObject))
+                    {
+                        destStateMachine.anyStateTransitions = new List<AnimatorStateTransition>(destStateMachine.anyStateTransitions) { cloneClip.ClipObject }.ToArray();
+                    }
+
+                    if (AnimatorClipboardUtility.CheckAndAddObjectToAsset(cloneClip.ClipObject, destAssetPath))
+                    {
+                        pastedObjs.Add(cloneClip.ClipObject);
                     }
                 }
             }
@@ -185,7 +254,7 @@ namespace io.github.kiriumestand.animatorclipboard.editor
             return cloneClip;
         }
 
-        public void PasteBehaviours(ClipSet clipSet, AnimatorStateMachine destStateMachine)
+        public static void PasteBehaviours(ClipSet clipSet, AnimatorStateMachine destStateMachine)
         {
             if (clipSet.Type != ClipSet.ClipSetType.Behaviours)
             {
@@ -211,7 +280,7 @@ namespace io.github.kiriumestand.animatorclipboard.editor
             }
         }
 
-        public void PasteBehaviours(ClipSet clipSet, AnimatorState destState)
+        public static void PasteBehaviours(ClipSet clipSet, AnimatorState destState)
         {
             if (clipSet.Type != ClipSet.ClipSetType.Behaviours)
             {
@@ -237,7 +306,7 @@ namespace io.github.kiriumestand.animatorclipboard.editor
             }
         }
 
-        public void PasteSettings(ClipSet clipSet, AnimatorState destState)
+        public static void PasteSettings(ClipSet clipSet, AnimatorState destState)
         {
             if (clipSet.Type != ClipSet.ClipSetType.ChildState)
             {
@@ -263,42 +332,42 @@ namespace io.github.kiriumestand.animatorclipboard.editor
             destState.writeDefaultValues = state.writeDefaultValues;
         }
 
-        public void PasteSettings(ClipSet clipSet, AnimatorTransition destTransition)
+        public static void PasteSettings(ClipSet clipSet, AnimatorTransition destTransition)
         {
             AnimatorTransition srcTransition = GetAnimatorTransition(clipSet);
             PasteSettings(srcTransition, destTransition);
         }
 
-        public void PasteSettings(AnimatorTransition srcTransition, AnimatorTransition destTransition)
+        public static void PasteSettings(AnimatorTransition srcTransition, AnimatorTransition destTransition)
         {
             destTransition.mute = srcTransition.mute;
             destTransition.solo = srcTransition.solo;
         }
 
-        public void PasteConditions(ClipSet clipSet, AnimatorTransition destTransition)
+        public static void PasteConditions(ClipSet clipSet, AnimatorTransition destTransition)
         {
             AnimatorTransition srcTransition = GetAnimatorTransition(clipSet);
             PasteConditions(srcTransition, destTransition);
         }
 
-        public void PasteConditions(AnimatorTransition srcTransition, AnimatorTransition destTransition)
+        public static void PasteConditions(AnimatorTransition srcTransition, AnimatorTransition destTransition)
         {
             destTransition.conditions = srcTransition.conditions.ToArray();
         }
 
-        public void PasteSettingsAndConditions(ClipSet clipSet, AnimatorTransition destTransition)
+        public static void PasteSettingsAndConditions(ClipSet clipSet, AnimatorTransition destTransition)
         {
             AnimatorTransition srcTransition = GetAnimatorTransition(clipSet);
             PasteSettingsAndConditions(srcTransition, destTransition);
         }
 
-        public void PasteSettingsAndConditions(AnimatorTransition srcTransition, AnimatorTransition destTransition)
+        public static void PasteSettingsAndConditions(AnimatorTransition srcTransition, AnimatorTransition destTransition)
         {
             PasteSettings(srcTransition, destTransition);
             PasteConditions(srcTransition, destTransition);
         }
 
-        public AnimatorTransition GetAnimatorTransition(ClipSet clipSet)
+        public static AnimatorTransition GetAnimatorTransition(ClipSet clipSet)
         {
             if (clipSet.Type != ClipSet.ClipSetType.Transition)
             {
@@ -307,13 +376,13 @@ namespace io.github.kiriumestand.animatorclipboard.editor
             return ((Clip<AnimatorTransition>)clipSet.Clips.First()).ClipObject;
         }
 
-        public void PasteSettings(ClipSet clipSet, AnimatorStateTransition destStateTransition)
+        public static void PasteSettings(ClipSet clipSet, AnimatorStateTransition destStateTransition)
         {
             AnimatorStateTransition srcStateTransition = GetAnimatorStateTransition(clipSet);
             PasteSettings(srcStateTransition, destStateTransition);
         }
 
-        public void PasteSettings(AnimatorStateTransition srcStateTransition, AnimatorStateTransition destStateTransition)
+        public static void PasteSettings(AnimatorStateTransition srcStateTransition, AnimatorStateTransition destStateTransition)
         {
             destStateTransition.canTransitionToSelf = srcStateTransition.canTransitionToSelf;
             destStateTransition.duration = srcStateTransition.duration;
@@ -327,30 +396,30 @@ namespace io.github.kiriumestand.animatorclipboard.editor
             destStateTransition.solo = srcStateTransition.solo;
         }
 
-        public void PasteConditions(ClipSet clipSet, AnimatorStateTransition destStateTransition)
+        public static void PasteConditions(ClipSet clipSet, AnimatorStateTransition destStateTransition)
         {
             AnimatorStateTransition srcStateTransition = GetAnimatorStateTransition(clipSet);
             PasteConditions(srcStateTransition, destStateTransition);
         }
 
-        public void PasteConditions(AnimatorStateTransition srcStateTransition, AnimatorStateTransition destStateTransition)
+        public static void PasteConditions(AnimatorStateTransition srcStateTransition, AnimatorStateTransition destStateTransition)
         {
             destStateTransition.conditions = srcStateTransition.conditions.ToArray();
         }
 
-        public void PasteSettingsAndConditions(ClipSet clipSet, AnimatorStateTransition destStateTransition)
+        public static void PasteSettingsAndConditions(ClipSet clipSet, AnimatorStateTransition destStateTransition)
         {
             AnimatorStateTransition srcStateTransition = GetAnimatorStateTransition(clipSet);
             PasteSettingsAndConditions(srcStateTransition, destStateTransition);
         }
 
-        public void PasteSettingsAndConditions(AnimatorStateTransition srcStateTransition, AnimatorStateTransition destStateTransition)
+        public static void PasteSettingsAndConditions(AnimatorStateTransition srcStateTransition, AnimatorStateTransition destStateTransition)
         {
             PasteSettings(srcStateTransition, destStateTransition);
             PasteConditions(srcStateTransition, destStateTransition);
         }
 
-        private AnimatorStateTransition GetAnimatorStateTransition(ClipSet clipSet)
+        private static AnimatorStateTransition GetAnimatorStateTransition(ClipSet clipSet)
         {
             if (clipSet.Type != ClipSet.ClipSetType.StateTransition)
             {
@@ -359,7 +428,7 @@ namespace io.github.kiriumestand.animatorclipboard.editor
             return ((Clip<AnimatorStateTransition>)clipSet.Clips.First()).ClipObject;
         }
 
-        private void ThrowPasteInvalidClipSetTypeException()
+        private static void ThrowPasteInvalidClipSetTypeException()
         {
             throw new Exception("貼り付け先に対して貼り付けるデータのタイプが不正です");
         }

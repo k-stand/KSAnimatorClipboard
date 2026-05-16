@@ -85,7 +85,7 @@ namespace io.github.kiriumestand.animatorclipboard.editor
         {
             if (parentController != null)
             {
-                if (layers.All(l => parentController.layers.Contains(l)))
+                if (layers.All(l => parentController.layers.Any(pl => IsEqualLayer(l, pl))))
                 {
                     ParentController = parentController;
                 }
@@ -96,13 +96,30 @@ namespace io.github.kiriumestand.animatorclipboard.editor
             }
         }
 
+        private bool IsEqualLayer(AnimatorControllerLayer layer1, AnimatorControllerLayer layer2)
+        {
+            return layer1.avatarMask == layer2.avatarMask &&
+                layer1.blendingMode == layer2.blendingMode &&
+                layer1.defaultWeight == layer2.defaultWeight &&
+                layer1.iKPass == layer2.iKPass &&
+                layer1.name == layer2.name &&
+                layer1.stateMachine == layer2.stateMachine &&
+                layer1.syncedLayerAffectsTiming == layer2.syncedLayerAffectsTiming &&
+                layer1.syncedLayerIndex == layer2.syncedLayerIndex;
+        }
+
         private void AncestorSetting(IEnumerable<object> objs, AnimatorStateMachine ancestorStateMachine)
         {
             if (ancestorStateMachine != null)
             {
                 HashSet<object> descendantObjs = AnimatorClipboardUtility.ListupInStateMachineObjectsAndSelf(ancestorStateMachine);
 
-                if (objs.All(o => descendantObjs.Contains(o)))
+                if (
+                    objs.All(o => descendantObjs.Contains(o) ||
+                        (o is ChildAnimatorState cas && descendantObjs.Contains(cas.state)) ||
+                        (o is ChildAnimatorStateMachine casm && descendantObjs.Contains(casm.stateMachine))
+                    )
+                )
                 {
                     AncestorStateMachine = ancestorStateMachine;
                 }
@@ -115,14 +132,14 @@ namespace io.github.kiriumestand.animatorclipboard.editor
 
         private void ContextsSetting(AnimatorController parentController)
         {
-            HashSet<object> objs = new(parentController.layers) { parentController };
-            ContextsSettingInternal(objs);
+            HashSet<object> relatedObjs = new(parentController.layers) { parentController };
+            ContextsSettingInternal(relatedObjs);
         }
 
         private void ContextsSetting(AnimatorStateMachine ancestorStateMachine)
         {
-            HashSet<object> objs = AnimatorClipboardUtility.ListupInStateMachineObjectsAndSelf(ancestorStateMachine);
-            ContextsSettingInternal(objs);
+            HashSet<object> relatedObjs = AnimatorClipboardUtility.ListupInStateMachineObjectsAndSelf(ancestorStateMachine);
+            ContextsSettingInternal(relatedObjs);
         }
 
         private void ContextsSetting()
@@ -130,15 +147,17 @@ namespace io.github.kiriumestand.animatorclipboard.editor
             ContextsSettingInternal(Array.Empty<object>());
         }
 
-        private void ContextsSettingInternal(IEnumerable<object> objs)
+        private void ContextsSettingInternal(IEnumerable<object> relatedObjs)
         {
+            // Clipsを型ごとに仕分ける
             var groupedClips = Clips.GroupBy(c => c.Type);
-            Clip<ChildAnimatorState>[] stateClips = (Clip<ChildAnimatorState>[])groupedClips.Where(g => g.Key == typeof(ChildAnimatorState)).SelectMany(g => g).ToArray();
-            Clip<ChildAnimatorStateMachine>[] stateMachineClips = (Clip<ChildAnimatorStateMachine>[])groupedClips.Where(g => g.Key == typeof(ChildAnimatorStateMachine)).SelectMany(g => g).ToArray();
-            Clip<AnimatorTransition>[] transitionClips = (Clip<AnimatorTransition>[])groupedClips.Where(g => g.Key == typeof(AnimatorTransition)).SelectMany(g => g).ToArray();
-            Clip<AnimatorStateTransition>[] stateTransitionClips = (Clip<AnimatorStateTransition>[])groupedClips.Where(g => g.Key == typeof(AnimatorStateTransition)).SelectMany(g => g).ToArray();
-            Clip<AnimatorControllerLayer>[] layerClips = (Clip<AnimatorControllerLayer>[])groupedClips.Where(g => g.Key == typeof(AnimatorControllerLayer)).SelectMany(g => g).ToArray();
+            Clip<ChildAnimatorState>[] stateClips = groupedClips.Where(g => g.Key == typeof(ChildAnimatorState)).SelectMany(g => g.Select(cb => (Clip<ChildAnimatorState>)cb)).ToArray();
+            Clip<ChildAnimatorStateMachine>[] stateMachineClips = groupedClips.Where(g => g.Key == typeof(ChildAnimatorStateMachine)).SelectMany(g => g.Select(cb => (Clip<ChildAnimatorStateMachine>)cb)).ToArray();
+            Clip<AnimatorTransition>[] transitionClips = groupedClips.Where(g => g.Key == typeof(AnimatorTransition)).SelectMany(g => g.Select(cb => (Clip<AnimatorTransition>)cb)).ToArray();
+            Clip<AnimatorStateTransition>[] stateTransitionClips = groupedClips.Where(g => g.Key == typeof(AnimatorStateTransition)).SelectMany(g => g.Select(cb => (Clip<AnimatorStateTransition>)cb)).ToArray();
+            Clip<AnimatorControllerLayer>[] layerClips = groupedClips.Where(g => g.Key == typeof(AnimatorControllerLayer)).SelectMany(g => g.Select(cb => (Clip<AnimatorControllerLayer>)cb)).ToArray();
 
+            // Clipsの中身を取り出す
             IEnumerable<object> clipObjs = Clips.Select(static x => x.GenericClipObject switch
                 {
                     ChildAnimatorState cas => cas.state,
@@ -146,23 +165,41 @@ namespace io.github.kiriumestand.animatorclipboard.editor
                     _ => x.GenericClipObject,
                 });
 
-            HashSet<object> totalObjHashSet = clipObjs.Union(objs).ToHashSet();
-            var groupedObjs = totalObjHashSet.GroupBy(c => c.GetType());
-            AnimatorState[] stateObjs = (AnimatorState[])groupedObjs.Where(g => g.Key == typeof(AnimatorState)).SelectMany(g => g).ToArray();
-            AnimatorStateMachine[] stateMachineObjs = (AnimatorStateMachine[])groupedObjs.Where(g => g.Key == typeof(AnimatorStateMachine)).SelectMany(g => g).ToArray();
-            AnimatorTransition[] transitionObjs = (AnimatorTransition[])groupedObjs.Where(g => g.Key == typeof(AnimatorTransition)).SelectMany(g => g).ToArray();
-            AnimatorStateTransition[] stateTransitionObjs = (AnimatorStateTransition[])groupedObjs.Where(g => g.Key == typeof(AnimatorStateTransition)).SelectMany(g => g).ToArray();
-            AnimatorController[] animatorControllerObjs = (AnimatorController[])groupedObjs.Where(g => g.Key == typeof(AnimatorController)).SelectMany(g => g).ToArray();
+            // Clipsの中身を含めた全ての関連性のあるオブジェクト
+            HashSet<object> totalRelatedObjHashSet = clipObjs.Union(relatedObjs).ToHashSet();
+            var groupedObjs = totalRelatedObjHashSet.GroupBy(c => c.GetType());
+            AnimatorState[] stateObjs = groupedObjs.Where(g => g.Key == typeof(AnimatorState)).SelectMany(g => g.Select(cb => (AnimatorState)cb)).ToArray();
+            AnimatorStateMachine[] stateMachineObjs = groupedObjs.Where(g => g.Key == typeof(AnimatorStateMachine)).SelectMany(g => g.Select(cb => (AnimatorStateMachine)cb)).ToArray();
+            AnimatorTransition[] transitionObjs = groupedObjs.Where(g => g.Key == typeof(AnimatorTransition)).SelectMany(g => g.Select(cb => (AnimatorTransition)cb)).ToArray();
+            AnimatorStateTransition[] stateTransitionObjs = groupedObjs.Where(g => g.Key == typeof(AnimatorStateTransition)).SelectMany(g => g.Select(cb => (AnimatorStateTransition)cb)).ToArray();
+            AnimatorController[] animatorControllerObjs = groupedObjs.Where(g => g.Key == typeof(AnimatorController)).SelectMany(g => g.Select(cb => (AnimatorController)cb)).ToArray();
 
+            // 各Clipsに関連のあるオブジェクトや情報をコンテキストとして登録する
             foreach (Clip<AnimatorTransition> transitionClip in transitionClips)
             {
+                bool doBreak = false;
                 foreach (AnimatorStateMachine stateMachineObj in stateMachineObjs)
                 {
                     if (stateMachineObj.entryTransitions.Contains(transitionClip.ClipObject))
                     {
                         transitionClip.SetContext(ClipBase.ContextKey.Parent, stateMachineObj);
+                        transitionClip.SetContext(ClipBase.ContextKey.PropertyName, ClipBase.ContextValue.PropertyName.m_EntryTransitions);
                         break;
                     }
+
+                    foreach (ChildAnimatorStateMachine innerChildStateMachine in stateMachineObj.stateMachines)
+                    {
+                        AnimatorTransition[] transitions = stateMachineObj.GetStateMachineTransitions(innerChildStateMachine.stateMachine);
+
+                        if (transitions.Contains(transitionClip.ClipObject))
+                        {
+                            transitionClip.SetContext(ClipBase.ContextKey.Parent, stateMachineObj);
+                            transitionClip.SetContext(ClipBase.ContextKey.PropertyName, ClipBase.ContextValue.PropertyName.m_StateMachineTransitions);
+                            doBreak = true;
+                            break;
+                        }
+                    }
+                    if (doBreak) break;
                 }
             }
 
@@ -173,6 +210,7 @@ namespace io.github.kiriumestand.animatorclipboard.editor
                     if (stateMachineObj.anyStateTransitions.Contains(stateTransitionClip.ClipObject))
                     {
                         stateTransitionClip.SetContext(ClipBase.ContextKey.Parent, stateMachineObj);
+                        stateTransitionClip.SetContext(ClipBase.ContextKey.PropertyName, ClipBase.ContextValue.PropertyName.m_AnyStateTransitions);
                         break;
                     }
                 }
