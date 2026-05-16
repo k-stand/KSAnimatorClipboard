@@ -14,6 +14,7 @@
 ## 使用方法
 
 ## License
+[MIT License](https://github.com/KiriumeStand/AnimatorClipboard/blob/main/LICENSE.txt)
 
 ## 更新履歴
 [2026-mm-dd] x.y.z  
