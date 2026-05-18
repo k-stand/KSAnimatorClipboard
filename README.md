@@ -9,7 +9,9 @@
 2. 導入したいプロジェクトに`Animator Clipboard`をインストールしてください。
 
 ### VPAI unitypackageでVCCにインストールする方法
-1. https://github.com/k-stand/KSAnimatorClipboard/releases/latest から`com.github.k-stand.ksanimatorclipboard-installer.unitypackage`をダウンロードして、導入したいプロジェクトにインポートしてください。
+1. 以下から任意のバージョンの`com.github.k-stand.ksanimatorclipboard.X.x.x-installer.unitypackage`をダウンロードして、導入したいプロジェクトにインポートしてください。
+
+0.x.x : [com.github.k-stand.ksanimatorclipboard.0.x.x-installer.unitypackage](https://github.com/k-stand/KSAnimatorClipboard/releases/download/0.2.1/com.github.k-stand.ksanimatorclipboard.0.x.x-installer.unitypackage)
 
 ## 使用方法
 
@@ -17,5 +19,7 @@
 [MIT License](https://github.com/k-stand/KSAnimatorClipboard/blob/main/LICENSE.txt)
 
 ## 更新履歴
+[2026-05-19] 0.2.2  
+README.md を修正
 [2026-05-18] 0.2.1  
 GitHubにて公開
