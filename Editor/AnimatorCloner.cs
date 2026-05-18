@@ -1,13 +1,10 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Linq.Expressions;
-using System.Reflection;
 using UnityEditor;
 using UnityEditor.Animations;
 using UnityEngine;
 
-namespace io.github.kiriumestand.animatorclipboard.editor
+namespace com.github.k_stand.ksanimatorclipboard.editor
 {
     internal class AnimatorCloner
     {

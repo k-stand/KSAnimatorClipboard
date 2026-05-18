@@ -1,7 +1,6 @@
 using System;
-using System.Collections.Generic;
 
-namespace io.github.kiriumestand.animatorclipboard.editor
+namespace com.github.k_stand.ksanimatorclipboard.editor
 {
     public class Clip<T> : ClipBase
     {

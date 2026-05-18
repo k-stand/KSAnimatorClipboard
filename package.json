@@ -1,15 +1,15 @@
 {
-    "name": "io.github.kiriumestand.animatorclipboard",
-    "displayName": "Animator Clipboard",
-    "version": "0.1.0",
+    "name": "com.github.k-stand.ksanimatorclipboard",
+    "displayName": "KS Animator Clipboard",
+    "version": "0.2.0",
     "unity": "2022.3",
     "description": "アニメーター関連のデータをコピペする機能を提供するライブラリ",
     "author": {
-        "name": "KiriumeStand",
-        "url": "https://github.com/KiriumeStand/AnimatorClipboard"
+        "name": "k-stand",
+        "url": "https://github.com/k-stand/KSAnimatorClipboard"
     },
     "license": "MIT",
-    "repo": "https://kiriumestand.github.io/vpm-repos/index.json",
+    "repo": "https://k-stand.github.io/vpm-repos/index.json",
     "url": "",
     "vpmDependencies": {}
 }
