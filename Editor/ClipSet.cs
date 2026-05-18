@@ -5,7 +5,7 @@ using UnityEditor;
 using UnityEditor.Animations;
 using UnityEngine;
 
-namespace io.github.kiriumestand.animatorclipboard.editor
+namespace com.github.k_stand.ksanimatorclipboard.editor
 {
     public class ClipSet
     {

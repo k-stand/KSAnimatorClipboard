@@ -8,7 +8,7 @@ using UnityEditor;
 using UnityEditor.Animations;
 using UnityEngine;
 
-namespace io.github.kiriumestand.animatorclipboard.editor
+namespace com.github.k_stand.ksanimatorclipboard.editor
 {
     public static class AnimatorClipboardUtility
     {
@@ -41,12 +41,7 @@ namespace io.github.kiriumestand.animatorclipboard.editor
 
         private static Func<object, TValue> CreateFieldGetterFromType<TValue>(Type targetType, string fieldName)
         {
-            FieldInfo fieldInfo = targetType.GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
-
-            if (fieldInfo == null)
-            {
-                throw new InvalidOperationException($"Field '{fieldName}' not found in '{targetType.FullName}'");
-            }
+            FieldInfo fieldInfo = targetType.GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance) ?? throw new InvalidOperationException($"Field '{fieldName}' not found in '{targetType.FullName}'");
 
             ParameterExpression targetParam = Expression.Parameter(typeof(object));
 
