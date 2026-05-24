@@ -2,7 +2,8 @@ using System;
 
 namespace com.github.k_stand.ksanimatorclipboard.editor
 {
-    public class Clip<T> : ClipBase
+
+    public class AnimatorCopyClip<T> : AnimatorCopyClipBase
     {
         public override Type Type => typeof(T);
 
@@ -12,11 +13,12 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
             private set => GenericClipObject = value;
         }
 
-        public Clip(T obj)
+        public AnimatorCopyClip(T obj)
         {
             ClipObject = obj;
         }
 
-        public Clip<T> Clone(T obj) => new(obj) { Contexts = new(Contexts) };
+        public AnimatorCopyClip<T> Clone(T obj) => new(obj) { Contexts = new(Contexts) };
+
     }
 }
