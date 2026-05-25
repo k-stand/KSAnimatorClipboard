@@ -1,15 +1,23 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace com.github.k_stand.ksanimatorclipboard.editor
 {
-    public abstract class CopyClipBase
+    public abstract class CopyClipBase<T> where T : CopyClipBase<T>
     {
-        public abstract Type Type { get; }
+        public object Object { get; private protected set; }
 
-        public object GenericClipObject { get; private protected set; }
+        public virtual Type Type => Object.GetType();
 
         private protected Dictionary<string, object> Contexts { get; set; } = new();
+
+        private protected CopyClipBase(object obj)
+        {
+            Object = obj;
+        }
+
+        public abstract T Clone();
 
         internal void SetContext(string key, object value)
         {
@@ -23,6 +31,11 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
         internal bool TryGetContext(string key, out object value)
         {
             return Contexts.TryGetValue(key, out value);
+        }
+
+        internal KeyValuePair<string, object>[] GetAllContext()
+        {
+            return Contexts.ToArray();
         }
     }
 }

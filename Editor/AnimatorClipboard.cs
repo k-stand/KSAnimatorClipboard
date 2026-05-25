@@ -28,10 +28,9 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
             }
 
             AnimatorCloner cloner = new();
-            AnimatorCopyClip<AnimatorControllerLayer>[] castedClips = clipSet.Clips.Select(c => (AnimatorCopyClip<AnimatorControllerLayer>)c).ToArray();
-            foreach (AnimatorCopyClip<AnimatorControllerLayer> clip in castedClips)
+            foreach (AnimatorCopyClip clip in clipSet.Clips)
             {
-                cloner.AddRangeCloneWhiteList(AnimatorClipboardUtility.ListupObjectsInLayer(clip.ClipObject));
+                cloner.AddRangeCloneWhiteList(AnimatorClipboardUtility.ListupObjectsInLayer((AnimatorControllerLayer)clip.Object));
             }
 
             foreach (AnimatorControllerLayer layer in destAnimatorController.layers)
@@ -39,7 +38,7 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
                 cloner.AddRangeReferenceHoldingList(AnimatorClipboardUtility.ListupObjectsInLayer(layer));
             }
 
-            AnimatorControllerLayer[] cloneLayers = cloner.CloneAnimatorControllerLayers(castedClips.Select(x => x.ClipObject));
+            AnimatorControllerLayer[] cloneLayers = cloner.CloneAnimatorControllerLayers(clipSet.Clips.Select(x => (AnimatorControllerLayer)x.Object));
 
             if (clipSet.ParentController != destAnimatorController)
             {
@@ -80,27 +79,25 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
             inScopeObjs.Add(clipSet.AncestorStateMachine);
 
             AnimatorCloner cloner = new();
-            foreach (AnimatorCopyClipBase clip in clipSet.Clips)
+            foreach (AnimatorCopyClip clip in clipSet.Clips)
             {
-                switch (clip)
+                if (clip.Type == typeof(ChildAnimatorState))
                 {
-                    case AnimatorCopyClip<ChildAnimatorState> castedClip:
-                        cloner.AddCloneWhiteList(castedClip.ClipObject.state);
-                        break;
-                    case AnimatorCopyClip<ChildAnimatorStateMachine> castedClip:
-                        cloner.AddCloneWhiteList(castedClip.ClipObject.stateMachine);
-                        cloner.AddRangeCloneWhiteList(AnimatorClipboardUtility.ListupObjectsInStateMachine(castedClip.ClipObject.stateMachine));
-                        break;
-                    case AnimatorCopyClip<AnimatorTransition> castedClip:
-                        cloner.AddCloneWhiteList(castedClip.ClipObject);
-                        break;
-                    case AnimatorCopyClip<AnimatorStateTransition> castedClip:
-                        cloner.AddCloneWhiteList(castedClip.ClipObject);
-                        break;
+                    cloner.AddCloneWhiteList(((ChildAnimatorState)clip.Object).state);
+                }
+                else if (clip.Type == typeof(ChildAnimatorStateMachine))
+                {
+                    AnimatorStateMachine stateMachine = ((ChildAnimatorStateMachine)clip.Object).stateMachine;
+                    cloner.AddCloneWhiteList(stateMachine);
+                    cloner.AddRangeCloneWhiteList(AnimatorClipboardUtility.ListupObjectsInStateMachine(stateMachine));
+                }
+                else if (clip.Type == typeof(AnimatorTransition) || clip.Type == typeof(AnimatorStateTransition))
+                {
+                    cloner.AddCloneWhiteList(clip.Object);
                 }
             }
 
-            // 貼り付け先がコピー元の祖先のの子孫であるかで処理を変える
+            // 貼り付け先がコピー元の祖先の子孫であるかで処理を変える
             if (inScopeObjs.Contains(destStateMachine))
             {
                 cloner.AddRangeReferenceHoldingList(inScopeObjs);
@@ -112,161 +109,144 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
             }
 
             // クリップとそのデータのクローン
-            List<AnimatorCopyClip<ChildAnimatorState>> cloneChildAnimatorState = new();
-            List<AnimatorCopyClip<ChildAnimatorStateMachine>> cloneChildAnimatorStateMachine = new();
-            List<AnimatorCopyClip<AnimatorTransition>> cloneAnimatorTransition = new();
-            List<AnimatorCopyClip<AnimatorStateTransition>> cloneAnimatorStateTransition = new();
-            foreach (AnimatorCopyClipBase clip in clipSet.Clips)
+            List<AnimatorCopyClip> cloneChildAnimatorState = new();
+            List<AnimatorCopyClip> cloneChildAnimatorStateMachine = new();
+            List<AnimatorCopyClip> cloneAnimatorTransition = new();
+            List<AnimatorCopyClip> cloneAnimatorStateTransition = new();
+            foreach (AnimatorCopyClip clip in clipSet.Clips)
             {
-                switch (clip)
-                {
-                    case AnimatorCopyClip<ChildAnimatorState> castedClip:
-                        cloneChildAnimatorState.Add(CloneClip(castedClip, cloner));
-                        break;
-                    case AnimatorCopyClip<ChildAnimatorStateMachine> castedClip:
-                        cloneChildAnimatorStateMachine.Add(CloneClip(castedClip, cloner));
-                        break;
-                    case AnimatorCopyClip<AnimatorTransition> castedClip:
-                        cloneAnimatorTransition.Add(CloneClip(castedClip, cloner));
-                        break;
-                    case AnimatorCopyClip<AnimatorStateTransition> castedClip:
-                        cloneAnimatorStateTransition.Add(CloneClip(castedClip, cloner));
-                        break;
-                }
+                AnimatorCopyClip cloneClip = clip.Clone(cloner);
+                if (clip.Type == typeof(ChildAnimatorState)) cloneChildAnimatorState.Add(cloneClip);
+                else if (clip.Type == typeof(ChildAnimatorStateMachine)) cloneChildAnimatorStateMachine.Add(cloneClip);
+                else if (clip.Type == typeof(AnimatorTransition)) cloneAnimatorTransition.Add(cloneClip);
+                else if (clip.Type == typeof(AnimatorStateTransition)) cloneAnimatorStateTransition.Add(cloneClip);
             }
 
             // ペースト処理
             string destAssetPath = AssetDatabase.GetAssetPath(destStateMachine);
             List<UnityEngine.Object> pastedObjs = new();
-            foreach (AnimatorCopyClip<ChildAnimatorStateMachine> cloneClip in cloneChildAnimatorStateMachine)
+            foreach (AnimatorCopyClip cloneClip in cloneChildAnimatorStateMachine)
             {
-                if (!destStateMachine.stateMachines.Contains(cloneClip.ClipObject))
+                ChildAnimatorStateMachine cloneCASM = (ChildAnimatorStateMachine)cloneClip.Object;
+                if (!destStateMachine.stateMachines.Contains(cloneCASM))
                 {
-                    destStateMachine.stateMachines = new List<ChildAnimatorStateMachine>(destStateMachine.stateMachines) { cloneClip.ClipObject }.ToArray();
+                    destStateMachine.stateMachines = new List<ChildAnimatorStateMachine>(destStateMachine.stateMachines) { cloneCASM }.ToArray();
                     if (destAssetPath != "")
                     {
-                        pastedObjs.AddRange(AnimatorClipboardUtility.AddObjectToAssetRecursively(cloneClip.ClipObject.stateMachine, destAssetPath));
+                        pastedObjs.AddRange(AnimatorClipboardUtility.AddObjectToAssetRecursively(cloneCASM.stateMachine, destAssetPath));
                     }
                 }
             }
 
-            foreach (AnimatorCopyClip<ChildAnimatorState> cloneClip in cloneChildAnimatorState)
+            foreach (AnimatorCopyClip cloneClip in cloneChildAnimatorState)
             {
-                if (!destStateMachine.states.Contains(cloneClip.ClipObject))
+                ChildAnimatorState cloneCAS = (ChildAnimatorState)cloneClip.Object;
+                if (!destStateMachine.states.Contains(cloneCAS))
                 {
-                    destStateMachine.states = new List<ChildAnimatorState>(destStateMachine.states) { cloneClip.ClipObject }.ToArray();
+                    destStateMachine.states = new List<ChildAnimatorState>(destStateMachine.states) { cloneCAS }.ToArray();
                     if (destAssetPath != "")
                     {
-                        pastedObjs.AddRange(AnimatorClipboardUtility.AddObjectToAssetRecursively(cloneClip.ClipObject.state, destAssetPath));
+                        pastedObjs.AddRange(AnimatorClipboardUtility.AddObjectToAssetRecursively(cloneCAS.state, destAssetPath));
                     }
                 }
             }
 
-            foreach (AnimatorCopyClip<AnimatorTransition> cloneClip in cloneAnimatorTransition)
+            foreach (AnimatorCopyClip cloneClip in cloneAnimatorTransition)
             {
-                if (cloneClip.ClipObject.destinationState == null && cloneClip.ClipObject.destinationStateMachine == null && !cloneClip.ClipObject.isExit)
+                AnimatorTransition cloneAT = (AnimatorTransition)cloneClip.Object;
+                if (cloneAT.destinationState == null && cloneAT.destinationStateMachine == null && !cloneAT.isExit)
                 {
                     // Transition先が設定できていないなら
                     continue;
                 }
 
-                if (cloneClip.TryGetContext(AnimatorCopyClipBase.ContextKey.PropertyName, out object objPropName))
+                if (cloneClip.TryGetContext(AnimatorCopyClip.ContextKey.PropertyName, out object objPropName))
                 {
                     string propName = (string)objPropName;
 
                     // 元がm_StateMachineTransitionsに登録されていたものなら同様に設定する
-                    if (propName == AnimatorCopyClipBase.ContextValue.PropertyName.m_StateMachineTransitions &&
-                        cloneClip.TryGetContext(AnimatorCopyClipBase.ContextKey.Parent, out object parent) &&
+                    if (propName == AnimatorCopyClip.ContextValue.PropertyName.m_StateMachineTransitions &&
+                        cloneClip.TryGetContext(AnimatorCopyClip.ContextKey.Parent, out object parent) &&
                         destStateMachine.stateMachines.Select(x => x.stateMachine).Contains(parent))
                     {
                         AnimatorTransition[] smTranss = destStateMachine.GetStateMachineTransitions((AnimatorStateMachine)parent);
-                        if (!smTranss.Contains(cloneClip.ClipObject))
+                        if (!smTranss.Contains(cloneAT))
                         {
-                            AnimatorTransition[] newSMTranss = new List<AnimatorTransition>(smTranss) { cloneClip.ClipObject }.ToArray();
+                            AnimatorTransition[] newSMTranss = new List<AnimatorTransition>(smTranss) { cloneAT }.ToArray();
                             destStateMachine.SetStateMachineTransitions((AnimatorStateMachine)parent, newSMTranss);
-                            if (AnimatorClipboardUtility.CheckAndAddObjectToAsset(cloneClip.ClipObject, destAssetPath))
+                            if (AnimatorClipboardUtility.CheckAndAddObjectToAsset(cloneAT, destAssetPath))
                             {
-                                pastedObjs.Add(cloneClip.ClipObject);
+                                pastedObjs.Add(cloneAT);
                             }
                             continue;
                         }
                     }
 
                     // 元がEntryTransitionなら同様に登録する
-                    if (propName == AnimatorCopyClipBase.ContextValue.PropertyName.m_EntryTransitions &&
-                        !destStateMachine.entryTransitions.Contains(cloneClip.ClipObject))
+                    if (propName == AnimatorCopyClip.ContextValue.PropertyName.m_EntryTransitions &&
+                        !destStateMachine.entryTransitions.Contains(cloneClip.Object))
                     {
-                        destStateMachine.entryTransitions = new List<AnimatorTransition>(destStateMachine.entryTransitions) { cloneClip.ClipObject }.ToArray();
-                        if (AnimatorClipboardUtility.CheckAndAddObjectToAsset(cloneClip.ClipObject, destAssetPath))
+                        destStateMachine.entryTransitions = new List<AnimatorTransition>(destStateMachine.entryTransitions) { cloneAT }.ToArray();
+                        if (AnimatorClipboardUtility.CheckAndAddObjectToAsset(cloneAT, destAssetPath))
                         {
-                            pastedObjs.Add(cloneClip.ClipObject);
+                            pastedObjs.Add(cloneAT);
                         }
                         continue;
                     }
                 }
             }
 
-            foreach (AnimatorCopyClip<AnimatorStateTransition> cloneClip in cloneAnimatorStateTransition)
+            foreach (AnimatorCopyClip cloneClip in cloneAnimatorStateTransition)
             {
-                if (cloneClip.ClipObject.destinationState == null && cloneClip.ClipObject.destinationStateMachine == null && !cloneClip.ClipObject.isExit)
+                AnimatorStateTransition cloneAST = (AnimatorStateTransition)cloneClip.Object;
+                if (cloneAST.destinationState == null && cloneAST.destinationStateMachine == null && !cloneAST.isExit)
                 {
                     // Transition先が設定できていないなら
                     continue;
                 }
 
-                if (cloneClip.TryGetContext(AnimatorCopyClipBase.ContextKey.Parent, out object parent) && parent != null)
+                if (cloneClip.TryGetContext(AnimatorCopyClip.ContextKey.Parent, out object parent) && parent != null)
                 {
                     if (parent is AnimatorState parentState)
                     {
-                        if (!parentState.transitions.Contains(cloneClip.ClipObject))
+                        if (!parentState.transitions.Contains(cloneAST))
                         {
-                            parentState.transitions = new List<AnimatorStateTransition>(parentState.transitions) { cloneClip.ClipObject }.ToArray();
+                            parentState.transitions = new List<AnimatorStateTransition>(parentState.transitions) { cloneAST }.ToArray();
                         }
 
-                        if (AnimatorClipboardUtility.CheckAndAddObjectToAsset(cloneClip.ClipObject, destAssetPath))
+                        if (AnimatorClipboardUtility.CheckAndAddObjectToAsset(cloneAST, destAssetPath))
                         {
-                            pastedObjs.Add(cloneClip.ClipObject);
+                            pastedObjs.Add(cloneAST);
                         }
                     }
                     else if (parent is AnimatorStateMachine parentStateMachine)
                     {
-                        if (!parentStateMachine.anyStateTransitions.Contains(cloneClip.ClipObject))
+                        if (!parentStateMachine.anyStateTransitions.Contains(cloneAST))
                         {
-                            parentStateMachine.anyStateTransitions = new List<AnimatorStateTransition>(parentStateMachine.anyStateTransitions) { cloneClip.ClipObject }.ToArray();
+                            parentStateMachine.anyStateTransitions = new List<AnimatorStateTransition>(parentStateMachine.anyStateTransitions) { cloneAST }.ToArray();
                         }
 
-                        if (AnimatorClipboardUtility.CheckAndAddObjectToAsset(cloneClip.ClipObject, destAssetPath))
+                        if (AnimatorClipboardUtility.CheckAndAddObjectToAsset(cloneAST, destAssetPath))
                         {
-                            pastedObjs.Add(cloneClip.ClipObject);
+                            pastedObjs.Add(cloneAST);
                         }
                     }
                 }
-                else if (cloneClip.TryGetContext(AnimatorCopyClipBase.ContextKey.PropertyName, out object propName) && (string)propName == AnimatorCopyClipBase.ContextValue.PropertyName.m_AnyStateTransitions)
+                else if (cloneClip.TryGetContext(AnimatorCopyClip.ContextKey.PropertyName, out object propName) && (string)propName == AnimatorCopyClip.ContextValue.PropertyName.m_AnyStateTransitions)
                 {
-                    if (!destStateMachine.anyStateTransitions.Contains(cloneClip.ClipObject))
+                    if (!destStateMachine.anyStateTransitions.Contains(cloneAST))
                     {
-                        destStateMachine.anyStateTransitions = new List<AnimatorStateTransition>(destStateMachine.anyStateTransitions) { cloneClip.ClipObject }.ToArray();
+                        destStateMachine.anyStateTransitions = new List<AnimatorStateTransition>(destStateMachine.anyStateTransitions) { cloneAST }.ToArray();
                     }
 
-                    if (AnimatorClipboardUtility.CheckAndAddObjectToAsset(cloneClip.ClipObject, destAssetPath))
+                    if (AnimatorClipboardUtility.CheckAndAddObjectToAsset(cloneAST, destAssetPath))
                     {
-                        pastedObjs.Add(cloneClip.ClipObject);
+                        pastedObjs.Add(cloneAST);
                     }
                 }
             }
 
             return pastedObjs.ToArray();
-        }
-
-        private static AnimatorCopyClip<T> CloneClip<T>(AnimatorCopyClip<T> origClip, AnimatorCloner cloner)
-        {
-            T cloneCAS = cloner.CloneObject(origClip.ClipObject);
-            AnimatorCopyClip<T> cloneClip = origClip.Clone(cloneCAS);
-            if (cloneClip.TryGetContext(AnimatorCopyClipBase.ContextKey.Parent, out object parent))
-            {
-                cloneClip.SetContext(AnimatorCopyClipBase.ContextKey.Parent, cloner.CloneObject(parent));
-            }
-            return cloneClip;
         }
 
         public static StateMachineBehaviour[] PasteBehaviours(AnimatorCopyClipSet clipSet, AnimatorStateMachine destStateMachine)
@@ -291,21 +271,20 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
             }
 
             AnimatorCloner cloner = new();
-            List<AnimatorCopyClip<StateMachineBehaviour>> castedClips = clipSet.Clips.Cast<AnimatorCopyClip<StateMachineBehaviour>>().ToList();
-            foreach (AnimatorCopyClip<StateMachineBehaviour> clip in castedClips)
+            foreach (AnimatorCopyClip clip in clipSet.Clips)
             {
-                if (clip.GenericClipObject != null)
+                if (clip.Object != null)
                 {
-                    cloner.AddCloneWhiteList(clip.ClipObject);
+                    cloner.AddCloneWhiteList(clip.Object);
                 }
             }
 
             List<StateMachineBehaviour> cloneBehaviours = new();
-            foreach (AnimatorCopyClip<StateMachineBehaviour> clip in castedClips)
+            foreach (AnimatorCopyClip clip in clipSet.Clips)
             {
-                if (clip.GenericClipObject != null)
+                if (clip.Object != null)
                 {
-                    StateMachineBehaviour clone = cloner.CloneStateMachineBehaviour(clip.ClipObject);
+                    StateMachineBehaviour clone = cloner.CloneStateMachineBehaviour((StateMachineBehaviour)clip.Object);
                     cloneBehaviours.Add(clone);
                 }
             }
@@ -414,7 +393,7 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
                 }
             }
 
-            return ((AnimatorCopyClip<T>)clipSet.Clips.First()).ClipObject;
+            return (T)clipSet.Clips.First().Object;
         }
 
         private static void ThrowInvalidClipSetTypeException(Type requestType, AnimatorCopyClipSet.AnimatorCopyClipSetType clipSetType) => throw new Exception($"要求された型({requestType.FullName})に対して、ClipSetのデータのタイプ({nameof(AnimatorCopyClipSet.AnimatorCopyClipSetType)}.{clipSetType})が一致しません");

@@ -1,7 +1,35 @@
+using System.Collections.Generic;
+
 namespace com.github.k_stand.ksanimatorclipboard.editor
 {
-    public abstract class AnimatorCopyClipBase : CopyClipBase
+    public class AnimatorCopyClip : CopyClipBase<AnimatorCopyClip>
     {
+        internal AnimatorCopyClip(object obj) : base(obj) { }
+
+        public override AnimatorCopyClip Clone()
+        {
+            return Clone(Object);
+        }
+
+        public AnimatorCopyClip Clone(object obj)
+        {
+            return new(obj) { Contexts = new(Contexts) };
+        }
+
+        public AnimatorCopyClip Clone(AnimatorCloner cloner)
+        {
+            AnimatorCopyClip cloneClip = cloner.TryCloneObject(Object, out object cloneObj) ? Clone(cloneObj) : Clone();
+
+            KeyValuePair<string, object>[] allContext = cloneClip.GetAllContext();
+            foreach (KeyValuePair<string, object> context in allContext)
+            {
+                object cloneContextVal = cloner.TryCloneObject(context.Value, out object tempClone) ? tempClone : context.Value;
+                cloneClip.SetContext(context.Key, cloneContextVal);
+            }
+
+            return cloneClip;
+        }
+
         internal static class ContextKey
         {
             internal static readonly string Parent = "Parent";

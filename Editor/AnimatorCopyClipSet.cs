@@ -10,9 +10,22 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
 {
     public class AnimatorCopyClipSet
     {
-        public ReadOnlyCollection<AnimatorCopyClipBase> Clips { get; private set; }
+        public ReadOnlyCollection<AnimatorCopyClip> Clips { get; private set; }
 
-        public AnimatorCopyClipSetType Type { get; private set; }
+        private bool initedType = false;
+        private AnimatorCopyClipSetType type;
+        public AnimatorCopyClipSetType Type
+        {
+            get
+            {
+                if (!initedType)
+                {
+                    type = GetClipSetType();
+                    initedType = true;
+                }
+                return type;
+            }
+        }
 
         public AnimatorController ParentController { get; private set; }
 
@@ -76,10 +89,42 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
             ContextsSetting();
         }
 
+        private AnimatorCopyClipSet(
+            IEnumerable<AnimatorCopyClip> clips,
+            AnimatorController parentController,
+            AnimatorStateMachine ancestorStateMachine)
+        {
+            Clips = new(clips.ToList());
+            ParentController = parentController;
+            AncestorStateMachine = ancestorStateMachine;
+        }
+
+        public AnimatorCopyClipSet Clone()
+        {
+            AnimatorCloner cloner = new() { InvertReferenceHoldingList = true };
+            cloner.AddRangeCloneWhiteList(Clips.Select(x => x.Object));
+            return Clone(cloner);
+        }
+
+        public AnimatorCopyClipSet Clone(AnimatorCloner cloner)
+        {
+            List<AnimatorCopyClip> cloneClips = new();
+            foreach (AnimatorCopyClip clip in Clips)
+            {
+                AnimatorCopyClip cloneClip = clip.Clone(cloner);
+                cloneClips.Add(cloneClip);
+            }
+
+            AnimatorController assignParentController = cloner.TryCloneObject(ParentController, out object cloneParentController) ? (AnimatorController)cloneParentController : ParentController;
+            AnimatorStateMachine assignAncestorStateMachine = cloner.TryCloneObject(AncestorStateMachine, out object cloneAncestorStateMachine) ? (AnimatorStateMachine)cloneAncestorStateMachine : AncestorStateMachine;
+            AnimatorCopyClipSet cloneClipSet = new(cloneClips, assignParentController, assignAncestorStateMachine);
+
+            return cloneClipSet;
+        }
+
         private void ClipSetInit(IEnumerable<object> objs)
         {
             Clips = new(objs.Select(o => CreateClipBase(o)).ToList());
-            Type = GetClipSetType();
         }
 
         private void AncestorSetting(IEnumerable<AnimatorControllerLayer> layers, AnimatorController parentController)
@@ -154,18 +199,18 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
         {
             // Clipsを型ごとに仕分ける
             var groupedClips = Clips.GroupBy(c => c.Type);
-            AnimatorCopyClip<ChildAnimatorState>[] stateClips = groupedClips.Where(g => g.Key == typeof(ChildAnimatorState)).SelectMany(g => g.Select(cb => (AnimatorCopyClip<ChildAnimatorState>)cb)).ToArray();
-            AnimatorCopyClip<ChildAnimatorStateMachine>[] stateMachineClips = groupedClips.Where(g => g.Key == typeof(ChildAnimatorStateMachine)).SelectMany(g => g.Select(cb => (AnimatorCopyClip<ChildAnimatorStateMachine>)cb)).ToArray();
-            AnimatorCopyClip<AnimatorTransition>[] transitionClips = groupedClips.Where(g => g.Key == typeof(AnimatorTransition)).SelectMany(g => g.Select(cb => (AnimatorCopyClip<AnimatorTransition>)cb)).ToArray();
-            AnimatorCopyClip<AnimatorStateTransition>[] stateTransitionClips = groupedClips.Where(g => g.Key == typeof(AnimatorStateTransition)).SelectMany(g => g.Select(cb => (AnimatorCopyClip<AnimatorStateTransition>)cb)).ToArray();
-            AnimatorCopyClip<AnimatorControllerLayer>[] layerClips = groupedClips.Where(g => g.Key == typeof(AnimatorControllerLayer)).SelectMany(g => g.Select(cb => (AnimatorCopyClip<AnimatorControllerLayer>)cb)).ToArray();
+            AnimatorCopyClip[] stateClips = groupedClips.Where(g => g.Key == typeof(ChildAnimatorState)).SelectMany(g => g.Select(cb => (AnimatorCopyClip)cb)).ToArray();
+            AnimatorCopyClip[] stateMachineClips = groupedClips.Where(g => g.Key == typeof(ChildAnimatorStateMachine)).SelectMany(g => g.Select(cb => (AnimatorCopyClip)cb)).ToArray();
+            AnimatorCopyClip[] transitionClips = groupedClips.Where(g => g.Key == typeof(AnimatorTransition)).SelectMany(g => g.Select(cb => (AnimatorCopyClip)cb)).ToArray();
+            AnimatorCopyClip[] stateTransitionClips = groupedClips.Where(g => g.Key == typeof(AnimatorStateTransition)).SelectMany(g => g.Select(cb => (AnimatorCopyClip)cb)).ToArray();
+            AnimatorCopyClip[] layerClips = groupedClips.Where(g => g.Key == typeof(AnimatorControllerLayer)).SelectMany(g => g.Select(cb => (AnimatorCopyClip)cb)).ToArray();
 
             // Clipsの中身を取り出す
-            IEnumerable<object> clipObjs = Clips.Select(static x => x.GenericClipObject switch
+            IEnumerable<object> clipObjs = Clips.Select(static x => x.Object switch
                 {
                     ChildAnimatorState cas => cas.state,
                     ChildAnimatorStateMachine csam => csam.stateMachine,
-                    _ => x.GenericClipObject,
+                    _ => x.Object,
                 });
 
             // Clipsの中身を含めた全ての関連性のあるオブジェクト
@@ -178,15 +223,15 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
             AnimatorController[] animatorControllerObjs = groupedObjs.Where(g => g.Key == typeof(AnimatorController)).SelectMany(g => g.Select(cb => (AnimatorController)cb)).ToArray();
 
             // 各Clipsに関連のあるオブジェクトや情報をコンテキストとして登録する
-            foreach (AnimatorCopyClip<AnimatorTransition> transitionClip in transitionClips)
+            foreach (AnimatorCopyClip transitionClip in transitionClips)
             {
                 bool doBreak = false;
                 foreach (AnimatorStateMachine stateMachineObj in stateMachineObjs)
                 {
-                    if (stateMachineObj.entryTransitions.Contains(transitionClip.ClipObject))
+                    if (stateMachineObj.entryTransitions.Contains(transitionClip.Object))
                     {
-                        transitionClip.SetContext(AnimatorCopyClipBase.ContextKey.Parent, stateMachineObj);
-                        transitionClip.SetContext(AnimatorCopyClipBase.ContextKey.PropertyName, AnimatorCopyClipBase.ContextValue.PropertyName.m_EntryTransitions);
+                        transitionClip.SetContext(AnimatorCopyClip.ContextKey.Parent, stateMachineObj);
+                        transitionClip.SetContext(AnimatorCopyClip.ContextKey.PropertyName, AnimatorCopyClip.ContextValue.PropertyName.m_EntryTransitions);
                         break;
                     }
 
@@ -194,10 +239,10 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
                     {
                         AnimatorTransition[] transitions = stateMachineObj.GetStateMachineTransitions(innerChildStateMachine.stateMachine);
 
-                        if (transitions.Contains(transitionClip.ClipObject))
+                        if (transitions.Contains(transitionClip.Object))
                         {
-                            transitionClip.SetContext(AnimatorCopyClipBase.ContextKey.Parent, stateMachineObj);
-                            transitionClip.SetContext(AnimatorCopyClipBase.ContextKey.PropertyName, AnimatorCopyClipBase.ContextValue.PropertyName.m_StateMachineTransitions);
+                            transitionClip.SetContext(AnimatorCopyClip.ContextKey.Parent, stateMachineObj);
+                            transitionClip.SetContext(AnimatorCopyClip.ContextKey.PropertyName, AnimatorCopyClip.ContextValue.PropertyName.m_StateMachineTransitions);
                             doBreak = true;
                             break;
                         }
@@ -206,51 +251,51 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
                 }
             }
 
-            foreach (AnimatorCopyClip<AnimatorStateTransition> stateTransitionClip in stateTransitionClips)
+            foreach (AnimatorCopyClip stateTransitionClip in stateTransitionClips)
             {
                 foreach (AnimatorStateMachine stateMachineObj in stateMachineObjs)
                 {
-                    if (stateMachineObj.anyStateTransitions.Contains(stateTransitionClip.ClipObject))
+                    if (stateMachineObj.anyStateTransitions.Contains(stateTransitionClip.Object))
                     {
-                        stateTransitionClip.SetContext(AnimatorCopyClipBase.ContextKey.Parent, stateMachineObj);
-                        stateTransitionClip.SetContext(AnimatorCopyClipBase.ContextKey.PropertyName, AnimatorCopyClipBase.ContextValue.PropertyName.m_AnyStateTransitions);
+                        stateTransitionClip.SetContext(AnimatorCopyClip.ContextKey.Parent, stateMachineObj);
+                        stateTransitionClip.SetContext(AnimatorCopyClip.ContextKey.PropertyName, AnimatorCopyClip.ContextValue.PropertyName.m_AnyStateTransitions);
                         break;
                     }
                 }
                 foreach (AnimatorState stateObj in stateObjs)
                 {
-                    if (stateObj.transitions.Contains(stateTransitionClip.ClipObject))
+                    if (stateObj.transitions.Contains(stateTransitionClip.Object))
                     {
-                        stateTransitionClip.SetContext(AnimatorCopyClipBase.ContextKey.Parent, stateObj);
+                        stateTransitionClip.SetContext(AnimatorCopyClip.ContextKey.Parent, stateObj);
                         break;
                     }
                 }
             }
 
-            foreach (AnimatorCopyClip<AnimatorControllerLayer> layerClip in layerClips)
+            foreach (AnimatorCopyClip layerClip in layerClips)
             {
                 foreach (AnimatorController animatorControllerObj in animatorControllerObjs)
                 {
-                    if (animatorControllerObj.layers.Contains(layerClip.ClipObject))
+                    if (animatorControllerObj.layers.Contains(layerClip.Object))
                     {
-                        layerClip.SetContext(AnimatorCopyClipBase.ContextKey.Parent, animatorControllerObj);
+                        layerClip.SetContext(AnimatorCopyClip.ContextKey.Parent, animatorControllerObj);
                         break;
                     }
                 }
             }
         }
 
-        private AnimatorCopyClipBase CreateClipBase(object obj) => obj switch
+        private AnimatorCopyClip CreateClipBase(object obj) => obj switch
         {
-            AnimatorControllerLayer castedObj => new AnimatorCopyClip<AnimatorControllerLayer>(castedObj),
-            AnimatorState castedObj => new AnimatorCopyClip<ChildAnimatorState>(new() { state = castedObj }),
-            AnimatorStateMachine castedObj => new AnimatorCopyClip<ChildAnimatorStateMachine>(new() { stateMachine = castedObj }),
-            ChildAnimatorState castedObj => new AnimatorCopyClip<ChildAnimatorState>(castedObj),
-            ChildAnimatorStateMachine castedObj => new AnimatorCopyClip<ChildAnimatorStateMachine>(castedObj),
-            AnimatorTransition castedObj => new AnimatorCopyClip<AnimatorTransition>(castedObj),
-            AnimatorStateTransition castedObj => new AnimatorCopyClip<AnimatorStateTransition>(castedObj),
-            Behaviour castedObj => new AnimatorCopyClip<Behaviour>(castedObj),
-            _ => new AnimatorCopyClip<object>(obj),
+            AnimatorControllerLayer castedObj => new AnimatorCopyClip(castedObj),
+            AnimatorState castedObj => new AnimatorCopyClip(new ChildAnimatorState() { state = castedObj }),
+            AnimatorStateMachine castedObj => new AnimatorCopyClip(new ChildAnimatorStateMachine() { stateMachine = castedObj }),
+            ChildAnimatorState castedObj => new AnimatorCopyClip(castedObj),
+            ChildAnimatorStateMachine castedObj => new AnimatorCopyClip(castedObj),
+            AnimatorTransition castedObj => new AnimatorCopyClip(castedObj),
+            AnimatorStateTransition castedObj => new AnimatorCopyClip(castedObj),
+            Behaviour castedObj => new AnimatorCopyClip(castedObj),
+            _ => new AnimatorCopyClip(obj),
         };
 
         private AnimatorCopyClipSetType GetClipSetType()
