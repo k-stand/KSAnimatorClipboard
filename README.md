@@ -19,6 +19,11 @@
 [MIT License](https://github.com/k-stand/KSAnimatorClipboard/blob/main/LICENSE.txt)
 
 ## 更新履歴
+[2026-05-26] 0.3.0  
+ソースコードのリファクタリング
+複数の機能の追加
+複数の非公開だった処理を解放
+複数の不具合の修正
 [2026-05-19] 0.2.2  
 README.md を修正
 [2026-05-18] 0.2.1  
