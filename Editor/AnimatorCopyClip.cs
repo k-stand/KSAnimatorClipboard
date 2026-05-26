@@ -1,21 +1,49 @@
-using System;
+using System.Collections.Generic;
 
 namespace com.github.k_stand.ksanimatorclipboard.editor
 {
-
-    public class AnimatorCopyClip_obsorate<T> : AnimatorCopyClip
+    public class AnimatorCopyClip : CopyClipBase<AnimatorCopyClip>
     {
-        public override Type Type => typeof(T);
+        internal AnimatorCopyClip(object obj) : base(obj) { }
 
-        public T ClipObject
+        public AnimatorCopyClip Clone()
         {
-            get => (T)Object;
-            private set => Object = value;
+            return Clone(Object);
         }
 
-        public AnimatorCopyClip_obsorate(T obj) : base(obj) { }
+        public AnimatorCopyClip Clone(object obj)
+        {
+            return new(obj) { Contexts = new(Contexts) };
+        }
 
-        public AnimatorCopyClip_obsorate<T> Clone(T obj) => new(obj) { Contexts = new(Contexts) };
+        public AnimatorCopyClip Clone(AnimatorCloner cloner)
+        {
+            AnimatorCopyClip cloneClip = cloner.TryCloneObject(Object, out object cloneObj) ? Clone(cloneObj) : Clone();
 
+            KeyValuePair<string, object>[] allContext = cloneClip.GetAllContext();
+            foreach (KeyValuePair<string, object> context in allContext)
+            {
+                object cloneContextVal = cloner.TryCloneObject(context.Value, out object tempClone) ? tempClone : context.Value;
+                cloneClip.SetContext(context.Key, cloneContextVal);
+            }
+
+            return cloneClip;
+        }
+
+        internal static class ContextKey
+        {
+            internal static readonly string Parent = "Parent";
+            internal static readonly string PropertyName = "PropertyName";
+        }
+
+        internal static class ContextValue
+        {
+            internal static class PropertyName
+            {
+                internal static readonly string m_EntryTransitions = "m_EntryTransitions";
+                internal static readonly string m_StateMachineTransitions = "m_StateMachineTransitions";
+                internal static readonly string m_AnyStateTransitions = "m_AnyStateTransitions";
+            }
+        }
     }
 }

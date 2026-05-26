@@ -83,7 +83,7 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
 
         public bool TryCloneObject(object obj, out object clone)
         {
-            object tempClone = null;
+            object tempClone;
             if (obj == null || (tempClone = CloneObject(obj)) == null)
             {
                 clone = null;

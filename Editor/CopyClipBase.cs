@@ -17,8 +17,6 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
             Object = obj;
         }
 
-        public abstract T Clone();
-
         internal void SetContext(string key, object value)
         {
             if (string.IsNullOrEmpty(key))
