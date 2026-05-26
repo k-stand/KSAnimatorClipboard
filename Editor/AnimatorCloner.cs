@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
@@ -6,7 +7,7 @@ using UnityEngine;
 
 namespace com.github.k_stand.ksanimatorclipboard.editor
 {
-    internal class AnimatorCloner
+    public class AnimatorCloner
     {
         private readonly HashSet<object> CloneWhiteList = new();
 
@@ -14,9 +15,26 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
 
         private readonly Dictionary<object, object> CloneMap = new();
 
-        internal void AddCloneWhiteList(object obj) => CloneWhiteList.Add(obj);
+        public static readonly IReadOnlyCollection<Type> CloneableTypes = new HashSet<Type>
+        {
+            typeof(AnimatorController),
+            typeof(AnimatorControllerParameter),
+            typeof(AnimatorControllerLayer),
+            typeof(ChildAnimatorStateMachine),
+            typeof(AnimatorStateMachine),
+            typeof(ChildAnimatorState),
+            typeof(AnimatorState),
+            typeof(AnimatorTransition),
+            typeof(AnimatorStateTransition),
+            typeof(AnimatorCondition),
+            typeof(StateMachineBehaviour),
+        };
 
-        internal void AddRangeCloneWhiteList(IEnumerable<object> objs)
+        public bool InvertReferenceHoldingList { get; set; } = false;
+
+        public void AddCloneWhiteList(object obj) => CloneWhiteList.Add(obj);
+
+        public void AddRangeCloneWhiteList(IEnumerable<object> objs)
         {
             foreach (object obj in objs)
             {
@@ -24,13 +42,13 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
             }
         }
 
-        internal void RemoveCloneWhiteList(object obj) => ReferenceHoldingList.Remove(obj);
+        public void RemoveCloneWhiteList(object obj) => ReferenceHoldingList.Remove(obj);
 
-        internal List<object> GetAllCloneWhiteList() => new(CloneWhiteList);
+        public HashSet<object> GetAllCloneWhiteList() => new(CloneWhiteList);
 
-        internal void AddReferenceHoldingList(object obj) => ReferenceHoldingList.Add(obj);
+        public void AddReferenceHoldingList(object obj) => ReferenceHoldingList.Add(obj);
 
-        internal void AddRangeReferenceHoldingList(IEnumerable<object> objs)
+        public void AddRangeReferenceHoldingList(IEnumerable<object> objs)
         {
             foreach (object obj in objs)
             {
@@ -38,51 +56,16 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
             }
         }
 
-        internal void RemoveReferenceHoldingList(object obj) => ReferenceHoldingList.Remove(obj);
+        public void RemoveReferenceHoldingList(object obj) => ReferenceHoldingList.Remove(obj);
 
-        internal List<object> GetAllReferenceHoldingList() => new(ReferenceHoldingList);
+        public HashSet<object> GetAllReferenceHoldingList() => new(ReferenceHoldingList);
 
-        private bool GetOrCreateCloneInstance<T>(T orig, out T cloneIns) where T : new()
-        {
-            if (orig == null || orig is null)
-            {
-                cloneIns = default;
-                return false;
-            }
-            if (CloneMap.TryGetValue(orig, out object outObj) && outObj is T clone)
-            {
-                cloneIns = clone;
-                return false;
-            }
-
-            if (CloneWhiteList.Contains(orig))
-            {
-                clone = new();
-                CloneMap[orig] = CloneMap[clone] = cloneIns = clone;
-                return true;
-            }
-            else
-            {
-                if (ReferenceHoldingList.Contains(orig))
-                {
-                    CloneMap[orig] = cloneIns = orig;
-                }
-                else
-                {
-                    CloneMap[orig] = cloneIns = default;
-                }
-                return false;
-            }
-        }
-
-        internal object[] CloneObjects(IEnumerable<object> objs)
+        public object[] CloneObjects(IEnumerable<object> objs)
         {
             return objs.Select(obj => CloneObject(obj)).ToArray();
         }
 
-        internal T CloneObject<T>(T obj) => (T)CloneObjectInternal(obj);
-
-        internal object CloneObjectInternal(object obj) => obj switch
+        public object CloneObject(object obj) => obj switch
         {
             AnimatorController castedObj => CloneAnimatorController(castedObj),
             AnimatorControllerParameter castedObj => CloneAnimatorControllerParameter(castedObj),
@@ -98,8 +81,21 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
             _ => null,
         };
 
+        public bool TryCloneObject(object obj, out object clone)
+        {
+            object tempClone;
+            if (obj == null || (tempClone = CloneObject(obj)) == null)
+            {
+                clone = null;
+                return false;
+            }
 
-        internal AnimatorController CloneAnimatorController(AnimatorController ac)
+            clone = tempClone;
+            return true;
+        }
+
+
+        public AnimatorController CloneAnimatorController(AnimatorController ac)
         {
             bool isCreated = GetOrCreateCloneInstance(ac, out AnimatorController cloneAC);
             if (!isCreated) return cloneAC;
@@ -112,12 +108,12 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
             return cloneAC;
         }
 
-        internal AnimatorControllerParameter[] CloneAnimatorControllerParameters(IEnumerable<AnimatorControllerParameter> acps)
+        public AnimatorControllerParameter[] CloneAnimatorControllerParameters(IEnumerable<AnimatorControllerParameter> acps)
         {
             return acps.Select(acp => CloneAnimatorControllerParameter(acp)).ToArray();
         }
 
-        internal AnimatorControllerParameter CloneAnimatorControllerParameter(AnimatorControllerParameter acp)
+        public AnimatorControllerParameter CloneAnimatorControllerParameter(AnimatorControllerParameter acp)
         {
             return new()
             {
@@ -129,12 +125,12 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
             };
         }
 
-        internal AnimatorControllerLayer[] CloneAnimatorControllerLayers(IEnumerable<AnimatorControllerLayer> acls)
+        public AnimatorControllerLayer[] CloneAnimatorControllerLayers(IEnumerable<AnimatorControllerLayer> acls)
         {
             return acls.Select(acl => CloneAnimatorControllerLayer(acl)).ToArray();
         }
 
-        internal AnimatorControllerLayer CloneAnimatorControllerLayer(AnimatorControllerLayer acl)
+        public AnimatorControllerLayer CloneAnimatorControllerLayer(AnimatorControllerLayer acl)
         {
             AnimatorControllerLayer cloneACL = new()
             {
@@ -165,12 +161,12 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
             return cloneACL;
         }
 
-        internal ChildAnimatorStateMachine[] CloneChildAnimatorStateMachines(IEnumerable<ChildAnimatorStateMachine> casms)
+        public ChildAnimatorStateMachine[] CloneChildAnimatorStateMachines(IEnumerable<ChildAnimatorStateMachine> casms)
         {
             return casms.Select(casm => CloneChildAnimatorStateMachine(casm)).ToArray();
         }
 
-        internal ChildAnimatorStateMachine CloneChildAnimatorStateMachine(ChildAnimatorStateMachine casm)
+        public ChildAnimatorStateMachine CloneChildAnimatorStateMachine(ChildAnimatorStateMachine casm)
         {
             ChildAnimatorStateMachine cloneCAS = new()
             {
@@ -181,7 +177,7 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
             return cloneCAS;
         }
 
-        internal AnimatorStateMachine CloneAnimatorStateMachine(AnimatorStateMachine asm)
+        public AnimatorStateMachine CloneAnimatorStateMachine(AnimatorStateMachine asm)
         {
             bool isCreated = GetOrCreateCloneInstance(asm, out AnimatorStateMachine cloneASM);
             if (!isCreated) return cloneASM;
@@ -215,12 +211,12 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
             return cloneASM;
         }
 
-        internal ChildAnimatorState[] CloneChildAnimatorStates(IEnumerable<ChildAnimatorState> cass)
+        public ChildAnimatorState[] CloneChildAnimatorStates(IEnumerable<ChildAnimatorState> cass)
         {
             return cass.Select(cas => CloneChildAnimatorState(cas)).ToArray();
         }
 
-        internal ChildAnimatorState CloneChildAnimatorState(ChildAnimatorState cas)
+        public ChildAnimatorState CloneChildAnimatorState(ChildAnimatorState cas)
         {
             ChildAnimatorState cloneCAS = new()
             {
@@ -231,7 +227,7 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
             return cloneCAS;
         }
 
-        internal AnimatorState CloneAnimatorState(AnimatorState aState)
+        public AnimatorState CloneAnimatorState(AnimatorState aState)
         {
             bool isCreated = GetOrCreateCloneInstance(aState, out AnimatorState cloneAS);
             if (!isCreated) return cloneAS;
@@ -262,12 +258,12 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
             return cloneAS;
         }
 
-        internal AnimatorTransition[] CloneAnimatorTransitions(IEnumerable<AnimatorTransition> ats)
+        public AnimatorTransition[] CloneAnimatorTransitions(IEnumerable<AnimatorTransition> ats)
         {
             return ats.Select(at => CloneAnimatorTransition(at)).ToArray();
         }
 
-        internal AnimatorTransition CloneAnimatorTransition(AnimatorTransition at)
+        public AnimatorTransition CloneAnimatorTransition(AnimatorTransition at)
         {
             bool isCreated = GetOrCreateCloneInstance(at, out AnimatorTransition cloneAT);
             if (!isCreated) return cloneAT;
@@ -285,12 +281,12 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
             return cloneAT;
         }
 
-        internal AnimatorStateTransition[] CloneAnimatorStateTransitions(IEnumerable<AnimatorStateTransition> asts)
+        public AnimatorStateTransition[] CloneAnimatorStateTransitions(IEnumerable<AnimatorStateTransition> asts)
         {
             return asts.Select(ast => CloneAnimatorStateTransition(ast)).ToArray();
         }
 
-        internal AnimatorStateTransition CloneAnimatorStateTransition(AnimatorStateTransition ast)
+        public AnimatorStateTransition CloneAnimatorStateTransition(AnimatorStateTransition ast)
         {
             bool isCreated = GetOrCreateCloneInstance(ast, out AnimatorStateTransition cloneAST);
             if (!isCreated) return cloneAST;
@@ -316,22 +312,22 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
             return cloneAST;
         }
 
-        internal AnimatorCondition[] CloneAnimatorConditions(IEnumerable<AnimatorCondition> acs)
+        public AnimatorCondition[] CloneAnimatorConditions(IEnumerable<AnimatorCondition> acs)
         {
             return acs.Select(ac => CloneAnimatorCondition(ac)).ToArray();
         }
 
-        internal AnimatorCondition CloneAnimatorCondition(AnimatorCondition ac)
+        public AnimatorCondition CloneAnimatorCondition(AnimatorCondition ac)
         {
             return ac;
         }
 
-        internal StateMachineBehaviour[] CloneStateMachineBehaviours(IEnumerable<StateMachineBehaviour> smbs)
+        public StateMachineBehaviour[] CloneStateMachineBehaviours(IEnumerable<StateMachineBehaviour> smbs)
         {
             return smbs.Select(smb => CloneStateMachineBehaviour(smb)).ToArray();
         }
 
-        internal StateMachineBehaviour CloneStateMachineBehaviour(StateMachineBehaviour smb)
+        public StateMachineBehaviour CloneStateMachineBehaviour(StateMachineBehaviour smb)
         {
             StateMachineBehaviour cloneSMB = (StateMachineBehaviour)ScriptableObject.CreateInstance(smb.GetType());
             EditorUtility.CopySerialized(smb, cloneSMB);
@@ -339,7 +335,40 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
             return cloneSMB;
         }
 
-        internal string GetCloneObjName(string origName)
+        private bool GetOrCreateCloneInstance<T>(T orig, out T clone) where T : new()
+        {
+            if (orig == null || orig is null)
+            {
+                clone = default;
+                return false;
+            }
+            if (CloneMap.TryGetValue(orig, out object outObj) && outObj is T tOutObj)
+            {
+                clone = tOutObj;
+                return false;
+            }
+
+            if (CloneWhiteList.Contains(orig))
+            {
+                clone = new();
+                CloneMap[orig] = CloneMap[clone] = clone;
+                return true;
+            }
+            else
+            {
+                if (ReferenceHoldingList.Contains(orig) ^ InvertReferenceHoldingList)
+                {
+                    CloneMap[orig] = clone = orig;
+                }
+                else
+                {
+                    CloneMap[orig] = clone = default;
+                }
+                return false;
+            }
+        }
+
+        private string GetCloneObjName(string origName)
         {
             return string.IsNullOrEmpty(origName) ? "" : origName + " (Clone)";
         }

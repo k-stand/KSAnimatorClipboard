@@ -102,22 +102,20 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
             internal StateMachineBehaviour[] Behaviours;
         }
 
-
-        internal static HashSet<object> ListupInLayer(AnimatorControllerLayer layer)
+        internal static HashSet<object> ListupObjectsInLayer(AnimatorControllerLayer layer)
         {
-            List<object> containObjs = new();
-
-            containObjs.AddRange(ListupInStateMachineObjectsAndSelf(layer.stateMachine));
+            List<object> containObjs = new() { layer.stateMachine };
+            containObjs.AddRange(ListupObjectsInStateMachine(layer.stateMachine));
             containObjs.AddRange(GetAllOverrideStateMotionPairs(layer).Select(x => x.State));
             containObjs.AddRange(GetAllOverrideBehavioursPairs(layer).Select(x => x.State));
 
             return containObjs.ToHashSet();
         }
 
-        internal static HashSet<object> ListupInStateMachineObjectsAndSelf(AnimatorStateMachine stateMachine)
+        internal static HashSet<object> ListupObjectsInStateMachine(AnimatorStateMachine stateMachine)
         {
             if (stateMachine == null) { return new(); }
-            List<object> containObjs = new() { stateMachine };
+            List<object> containObjs = new() { };
 
             List<AnimatorStateMachine> searchQueue = new() { stateMachine };
             List<AnimatorStateMachine> searchedList = new();
@@ -148,9 +146,13 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
             return containObjs.ToHashSet();
         }
 
-        internal static bool CheckAndAddObjectToAsset(UnityEngine.Object objectToAdd, string path)
+        public static bool CheckAndAddObjectToAsset(UnityEngine.Object objectToAdd, AnimatorController controller) => CheckAndAddObjectToAsset(objectToAdd, AssetDatabase.GetAssetPath(controller));
+
+        public static bool CheckAndAddObjectToAsset(UnityEngine.Object objectToAdd, string path)
         {
-            bool doAdd = AssetDatabase.GetAssetPath(objectToAdd) == "" && !string.IsNullOrEmpty(path);
+            if (string.IsNullOrEmpty(path)) throw new ArgumentException("無効なパスが指定されました。");
+
+            bool doAdd = objectToAdd != null && AssetDatabase.GetAssetPath(objectToAdd) == "";
             if (doAdd)
             {
                 AssetDatabase.AddObjectToAsset(objectToAdd, path);
@@ -158,60 +160,41 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
             return doAdd;
         }
 
-        public static UnityEngine.Object[] AddObjectToAssetRecursively(UnityEngine.Object objectToAdd, string path)
+        public static HashSet<UnityEngine.Object> AddObjectToAssetRecursively(UnityEngine.Object objectToAdd, AnimatorController controller) => AddObjectToAssetRecursively(objectToAdd, AssetDatabase.GetAssetPath(controller));
+
+        public static HashSet<UnityEngine.Object> AddObjectToAssetRecursively(UnityEngine.Object objectToAdd, string path)
         {
-            if (objectToAdd == null) throw new ArgumentNullException("The specified UnityEngine.Object is null.");
-            if (string.IsNullOrEmpty(path)) throw new ArgumentException("An invalid path was specified.");
+            if (objectToAdd == null) throw new ArgumentNullException("指定された UnityEngine.Object は null です。");
+            if (string.IsNullOrEmpty(path)) throw new ArgumentException("無効なパスが指定されました。");
 
-            string propPath = AssetDatabase.GetAssetPath(objectToAdd);
-            List<UnityEngine.Object> addedObjects = new();
+            RecursiveSearchContext context = new();
+            HashSet<UnityEngine.Object> addedObjects = AddObjectToAssetRecursivelyInternal(objectToAdd, path, context);
 
-            if (propPath == "")
-            {
-                AssetDatabase.AddObjectToAsset(objectToAdd, path);
-                addedObjects.Add(objectToAdd);
-                propPath = path;
-            }
-
-            if (propPath == path)
-            {
-                RecursiveSearchContext context = new();
-                context.SearchedObjects.Add(objectToAdd);
-                addedObjects.AddRange(AddObjectToAssetRecursively(objectToAdd, path, context));
-            }
-
-            return addedObjects.ToArray();
+            return addedObjects;
         }
 
-        private static UnityEngine.Object[] AddObjectToAssetRecursively(UnityEngine.Object objectToAdd, string path, RecursiveSearchContext context)
+        private static HashSet<UnityEngine.Object> AddObjectToAssetRecursivelyInternal(UnityEngine.Object objectToAdd, string path, RecursiveSearchContext context)
         {
-            if (objectToAdd == null || context.SearchedObjects.Contains(objectToAdd)) return Array.Empty<UnityEngine.Object>();
+            if (objectToAdd == null || context.SearchedObjects.Contains(objectToAdd)) return new();
             context.SearchedObjects.Add(objectToAdd);
 
-            List<UnityEngine.Object> addedObjects = new();
+            HashSet<UnityEngine.Object> addedObjects = new();
+            bool added = CheckAndAddObjectToAsset(objectToAdd, path);
+            if (added) addedObjects.Add(objectToAdd);
 
-            SerializedObject so = new(objectToAdd);
+            if (AssetDatabase.GetAssetPath(objectToAdd) != path) return addedObjects;
+
+            using SerializedObject so = new(objectToAdd);
             SerializedProperty prop = so.GetIterator();
             while (prop.Next(true))
             {
-                if (prop.propertyType == SerializedPropertyType.ObjectReference && prop.objectReferenceValue != null)
+                if (prop.propertyType == SerializedPropertyType.ObjectReference)
                 {
-                    string propPath = AssetDatabase.GetAssetPath(prop.objectReferenceValue);
-                    if (propPath == "")
-                    {
-                        AssetDatabase.AddObjectToAsset(prop.objectReferenceValue, path);
-                        addedObjects.Add(prop.objectReferenceValue);
-                        propPath = path;
-                    }
-
-                    if (propPath == path)
-                    {
-                        addedObjects.AddRange(AddObjectToAssetRecursively(prop.objectReferenceValue, path, context));
-                    }
+                    addedObjects.UnionWith(AddObjectToAssetRecursivelyInternal(prop.objectReferenceValue, path, context));
                 }
             }
 
-            return addedObjects.ToArray();
+            return addedObjects;
         }
 
         public static void NormalizeAnimator(AnimatorController animator)
