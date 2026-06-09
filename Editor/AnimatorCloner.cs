@@ -9,11 +9,11 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
 {
     public class AnimatorCloner
     {
-        private readonly HashSet<object> CloneWhiteList = new();
+        public ClonePolicy DefaultPolicy { get; set; } = ClonePolicy.Detach;
 
-        private readonly HashSet<object> ReferenceHoldingList = new();
+        private readonly Dictionary<UnityEngine.Object, ClonePolicy> _policyMap = new();
 
-        private readonly Dictionary<object, object> CloneMap = new();
+        private readonly Dictionary<UnityEngine.Object, UnityEngine.Object> _cloneMap = new();
 
         public static readonly IReadOnlyCollection<Type> CloneableTypes = new HashSet<Type>
         {
@@ -30,35 +30,36 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
             typeof(StateMachineBehaviour),
         };
 
-        public bool InvertReferenceHoldingList { get; set; } = false;
+        public Func<string, string> NameTransformer { get; set; } = static origName => string.IsNullOrEmpty(origName) ? "" : origName + " (Clone)";
 
-        public void AddCloneWhiteList(object obj) => CloneWhiteList.Add(obj);
+        public void SetClonePolicy(UnityEngine.Object obj, ClonePolicy policy) => _policyMap[obj] = policy;
 
-        public void AddRangeCloneWhiteList(IEnumerable<object> objs)
+        public void SetRangeClonePolicy(IEnumerable<UnityEngine.Object> objs, ClonePolicy policy)
         {
-            foreach (object obj in objs)
+            foreach (UnityEngine.Object obj in objs) SetClonePolicy(obj, policy);
+        }
+
+        public void SetClonePolicyIfAbsent(UnityEngine.Object obj, ClonePolicy policy)
+        {
+            if (!_policyMap.TryGetValue(obj, out ClonePolicy current) || current < policy)
             {
-                CloneWhiteList.Add(obj);
+                _policyMap[obj] = policy;
             }
         }
 
-        public void RemoveCloneWhiteList(object obj) => ReferenceHoldingList.Remove(obj);
-
-        public HashSet<object> GetAllCloneWhiteList() => new(CloneWhiteList);
-
-        public void AddReferenceHoldingList(object obj) => ReferenceHoldingList.Add(obj);
-
-        public void AddRangeReferenceHoldingList(IEnumerable<object> objs)
+        public void SetRangeClonePolicyIfAbsent(IEnumerable<UnityEngine.Object> objs, ClonePolicy policy)
         {
-            foreach (object obj in objs)
-            {
-                ReferenceHoldingList.Add(obj);
-            }
+            foreach (UnityEngine.Object obj in objs) SetClonePolicyIfAbsent(obj, policy);
         }
 
-        public void RemoveReferenceHoldingList(object obj) => ReferenceHoldingList.Remove(obj);
+        public void RemoveClonePolicy(UnityEngine.Object obj) => _policyMap.Remove(obj);
 
-        public HashSet<object> GetAllReferenceHoldingList() => new(ReferenceHoldingList);
+        public bool TryGetClonePolicy(UnityEngine.Object obj, out ClonePolicy p) => _policyMap.TryGetValue(obj, out p);
+
+        private ClonePolicy GetClonePolicy(UnityEngine.Object obj)
+               => TryGetClonePolicy(obj, out ClonePolicy p) ? p : DefaultPolicy;
+
+        public Dictionary<UnityEngine.Object, ClonePolicy> GetAllClonePolicy() => new(_policyMap);
 
         public object[] CloneObjects(IEnumerable<object> objs)
         {
@@ -97,7 +98,7 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
 
         public AnimatorController CloneAnimatorController(AnimatorController ac)
         {
-            bool isCreated = GetOrCreateCloneInstance(ac, out AnimatorController cloneAC);
+            bool isCreated = TryGetOrCreateCloneInstance(ac, out AnimatorController cloneAC);
             if (!isCreated) return cloneAC;
 
             cloneAC.hideFlags = ac.hideFlags;
@@ -179,7 +180,7 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
 
         public AnimatorStateMachine CloneAnimatorStateMachine(AnimatorStateMachine asm)
         {
-            bool isCreated = GetOrCreateCloneInstance(asm, out AnimatorStateMachine cloneASM);
+            bool isCreated = TryGetOrCreateCloneInstance(asm, out AnimatorStateMachine cloneASM);
             if (!isCreated) return cloneASM;
 
             cloneASM.hideFlags = asm.hideFlags;
@@ -229,7 +230,7 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
 
         public AnimatorState CloneAnimatorState(AnimatorState aState)
         {
-            bool isCreated = GetOrCreateCloneInstance(aState, out AnimatorState cloneAS);
+            bool isCreated = TryGetOrCreateCloneInstance(aState, out AnimatorState cloneAS);
             if (!isCreated) return cloneAS;
 
             cloneAS.hideFlags = aState.hideFlags;
@@ -265,7 +266,7 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
 
         public AnimatorTransition CloneAnimatorTransition(AnimatorTransition at)
         {
-            bool isCreated = GetOrCreateCloneInstance(at, out AnimatorTransition cloneAT);
+            bool isCreated = TryGetOrCreateCloneInstance(at, out AnimatorTransition cloneAT);
             if (!isCreated) return cloneAT;
 
             cloneAT.hideFlags = at.hideFlags;
@@ -288,7 +289,7 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
 
         public AnimatorStateTransition CloneAnimatorStateTransition(AnimatorStateTransition ast)
         {
-            bool isCreated = GetOrCreateCloneInstance(ast, out AnimatorStateTransition cloneAST);
+            bool isCreated = TryGetOrCreateCloneInstance(ast, out AnimatorStateTransition cloneAST);
             if (!isCreated) return cloneAST;
 
             cloneAST.hideFlags = ast.hideFlags;
@@ -335,42 +336,335 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
             return cloneSMB;
         }
 
-        private bool GetOrCreateCloneInstance<T>(T orig, out T clone) where T : new()
+        private bool TryGetOrCreateCloneInstance<T>(T orig, out T clone) where T : UnityEngine.Object, new()
         {
-            if (orig == null || orig is null)
+            if (orig == null)
             {
                 clone = default;
                 return false;
             }
-            if (CloneMap.TryGetValue(orig, out object outObj) && outObj is T tOutObj)
+            if (_cloneMap.TryGetValue(orig, out UnityEngine.Object cached) && cached is T tCached)
             {
-                clone = tOutObj;
+                clone = tCached;
                 return false;
             }
 
-            if (CloneWhiteList.Contains(orig))
+            switch (GetClonePolicy(orig))
             {
-                clone = new();
-                CloneMap[orig] = CloneMap[clone] = clone;
-                return true;
-            }
-            else
-            {
-                if (ReferenceHoldingList.Contains(orig) ^ InvertReferenceHoldingList)
-                {
-                    CloneMap[orig] = clone = orig;
-                }
-                else
-                {
-                    CloneMap[orig] = clone = default;
-                }
-                return false;
+                case ClonePolicy.Clone:
+                    clone = new T();
+                    _cloneMap[orig] = _cloneMap[clone] = clone;
+                    return true;
+
+                case ClonePolicy.KeepReference:
+                    _cloneMap[orig] = clone = orig;
+                    return false;
+
+                case ClonePolicy.Detach:
+                default:
+                    _cloneMap[orig] = clone = default;
+                    return false;
+
+                case ClonePolicy.UnSetting:
+                    throw new Exception("ClonePolicyが未設定のオブジェクトをクローンしようとしました");
             }
         }
 
-        private string GetCloneObjName(string origName)
+        private string GetCloneObjName(string origName) => NameTransformer(origName);
+
+        /// <summary>
+        /// ClonePolicyの登録漏れを検出する
+        /// </summary>
+        /// <param name="target"></param>
+        /// <returns></returns>
+        public IReadOnlyCollection<UnregisteredEntry> ValidateRegistration(UnityEngine.Object target) => ValidateRegistrationInternal(target);
+
+
+        /// <summary>
+        /// ClonePolicyの登録漏れを検出する
+        /// </summary>
+        /// <param name="targets"></param>
+        /// <returns></returns>
+        public IReadOnlyCollection<UnregisteredEntry> ValidateRegistrations(IEnumerable<UnityEngine.Object> targets) => targets.SelectMany(t => ValidateRegistration(t)).ToHashSet();
+
+
+        private IReadOnlyCollection<UnregisteredEntry> ValidateRegistrationInternal(object target)
         {
-            return string.IsNullOrEmpty(origName) ? "" : origName + " (Clone)";
+            if (target == null)
+            {
+                return new List<UnregisteredEntry>();
+            }
+
+            HashSet<UnityEngine.Object> visitedObjSet = new();
+
+            IReadOnlyCollection<UnregisteredEntry> unregisteredList = target switch
+            {
+                AnimatorController castedObj => ValidateRegistrationAnimatorController(castedObj, null, "", ref visitedObjSet),
+                AnimatorControllerLayer castedObj => ValidateRegistrationAnimatorControllerLayer(castedObj, null, "", ref visitedObjSet),
+                ChildAnimatorStateMachine castedObj => ValidateRegistrationChildAnimatorStateMachine(castedObj, null, "", ref visitedObjSet),
+                AnimatorStateMachine castedObj => ValidateRegistrationAnimatorStateMachine(castedObj, null, "", ref visitedObjSet),
+                ChildAnimatorState castedObj => ValidateRegistrationChildAnimatorState(castedObj, null, "", ref visitedObjSet),
+                AnimatorState castedObj => ValidateRegistrationAnimatorState(castedObj, null, "", ref visitedObjSet),
+                AnimatorTransition castedObj => ValidateRegistrationAnimatorTransition(castedObj, null, "", ref visitedObjSet),
+                AnimatorStateTransition castedObj => ValidateRegistrationAnimatorStateTransition(castedObj, null, "", ref visitedObjSet),
+                StateMachineBehaviour castedObj => ValidateRegistrationStateMachineBehaviour(castedObj, null, "", ref visitedObjSet),
+                _ => new UnregisteredEntry[0],
+            };
+
+            return unregisteredList;
+        }
+
+        private IReadOnlyCollection<UnregisteredEntry> ValidateRegistrationAnimatorController(AnimatorController target, UnityEngine.Object parent, string memberName, ref HashSet<UnityEngine.Object> visitedObjSet)
+        {
+            if (visitedObjSet.Contains(target)) return new UnregisteredEntry[0];
+            visitedObjSet.Add(target);
+            bool existPolicy = ValidateAndCreateUnregisteredEntry(target, parent, memberName, out UnregisteredEntry entry, out ClonePolicy policy);
+            if (!existPolicy) return new UnregisteredEntry[] { entry };
+            if (policy != ClonePolicy.Clone) return new UnregisteredEntry[0];
+
+            HashSet<UnregisteredEntry> entries = new();
+
+            entries.UnionWith(ValidateRegistrationAnimatorControllerLayers(target.layers, target, nameof(target.layers), ref visitedObjSet));
+
+            return entries;
+        }
+
+        public IReadOnlyCollection<UnregisteredEntry> ValidateRegistrationAnimatorControllerLayers(IEnumerable<AnimatorControllerLayer> target, UnityEngine.Object parent, string memberName, ref HashSet<UnityEngine.Object> visitedObjSet)
+        {
+            int i = 0;
+            HashSet<UnregisteredEntry> entries = new();
+            foreach (AnimatorControllerLayer acl in target)
+            {
+                entries.UnionWith(ValidateRegistrationAnimatorControllerLayer(acl, parent, $"{memberName}[{i}]", ref visitedObjSet));
+                i++;
+            }
+            return entries;
+        }
+
+        private IReadOnlyCollection<UnregisteredEntry> ValidateRegistrationAnimatorControllerLayer(AnimatorControllerLayer target, UnityEngine.Object parent, string memberName, ref HashSet<UnityEngine.Object> visitedObjSet)
+        {
+            HashSet<UnregisteredEntry> entries = new();
+            entries.UnionWith(ValidateRegistrationAnimatorStateMachine(target.stateMachine, parent, $"{memberName}.{nameof(target.stateMachine)}", ref visitedObjSet));
+
+            AnimatorClipboardUtility.StateMotionPair[] overrideStateMotionPairs = AnimatorClipboardUtility.GetAllOverrideStateMotionPairs(target);
+            foreach (AnimatorClipboardUtility.StateMotionPair pair in overrideStateMotionPairs)
+            {
+                entries.UnionWith(ValidateRegistrationAnimatorState(pair.State, parent, $"{memberName}.m_Motions.m_State", ref visitedObjSet));
+            }
+            AnimatorClipboardUtility.StateBehavioursPair[] overrideBehavioursPairs = AnimatorClipboardUtility.GetAllOverrideBehavioursPairs(target);
+            foreach (AnimatorClipboardUtility.StateBehavioursPair pair in overrideBehavioursPairs)
+            {
+                entries.UnionWith(ValidateRegistrationAnimatorState(pair.State, parent, $"{memberName}.m_Behaviours.m_State", ref visitedObjSet));
+                entries.UnionWith(ValidateRegistrationStateMachineBehaviours(pair.Behaviours, parent, $"{memberName}.m_Behaviours.m_Behaviours", ref visitedObjSet));
+            }
+            return entries;
+        }
+
+        public IReadOnlyCollection<UnregisteredEntry> ValidateRegistrationChildAnimatorStateMachines(IEnumerable<ChildAnimatorStateMachine> targets, UnityEngine.Object parent, string memberName, ref HashSet<UnityEngine.Object> visitedObjSet)
+        {
+            int i = 0;
+            HashSet<UnregisteredEntry> entries = new();
+            foreach (ChildAnimatorStateMachine target in targets)
+            {
+                entries.UnionWith(ValidateRegistrationChildAnimatorStateMachine(target, parent, $"{memberName}[{i}]", ref visitedObjSet));
+                i++;
+            }
+            return entries;
+        }
+
+        private IReadOnlyCollection<UnregisteredEntry> ValidateRegistrationChildAnimatorStateMachine(ChildAnimatorStateMachine target, UnityEngine.Object parent, string memberName, ref HashSet<UnityEngine.Object> visitedObjSet)
+        {
+            return ValidateRegistrationAnimatorStateMachine(target.stateMachine, parent, $"{memberName}.{nameof(target.stateMachine)}", ref visitedObjSet);
+        }
+
+        private IReadOnlyCollection<UnregisteredEntry> ValidateRegistrationAnimatorStateMachine(AnimatorStateMachine target, UnityEngine.Object parent, string memberName, ref HashSet<UnityEngine.Object> visitedObjSet)
+        {
+            if (visitedObjSet.Contains(target)) return new UnregisteredEntry[0];
+            visitedObjSet.Add(target);
+            bool existPolicy = ValidateAndCreateUnregisteredEntry(target, parent, memberName, out UnregisteredEntry entry, out ClonePolicy policy);
+            if (!existPolicy) return new UnregisteredEntry[] { entry };
+            if (policy != ClonePolicy.Clone) return new UnregisteredEntry[0];
+
+            HashSet<UnregisteredEntry> entries = new();
+
+            entries.UnionWith(ValidateRegistrationChildAnimatorStates(target.states, target, nameof(target), ref visitedObjSet));
+            entries.UnionWith(ValidateRegistrationChildAnimatorStateMachines(target.stateMachines, target, nameof(target), ref visitedObjSet));
+            entries.UnionWith(ValidateRegistrationAnimatorState(target.defaultState, target, nameof(target), ref visitedObjSet));
+            entries.UnionWith(ValidateRegistrationAnimatorTransitions(target.entryTransitions, target, nameof(target), ref visitedObjSet));
+            entries.UnionWith(ValidateRegistrationAnimatorStateTransitions(target.anyStateTransitions, target, nameof(target.anyStateTransitions), ref visitedObjSet));
+            int i = 0;
+            foreach (ChildAnimatorStateMachine curCASM in target.stateMachines)
+            {
+                //TODO:ここのネイティブコードでのm_StateMachineTransitionsが見れるかデバッグモードで確認
+                AnimatorTransition[] transitions = target.GetStateMachineTransitions(curCASM.stateMachine);
+                entries.UnionWith(ValidateRegistrationAnimatorTransitions(transitions, target, $"StateMachineTransitions[{curCASM.stateMachine.name}]", ref visitedObjSet));
+                i++;
+            }
+            entries.UnionWith(ValidateRegistrationStateMachineBehaviours(target.behaviours, target, nameof(target), ref visitedObjSet));
+
+            return entries;
+
+        }
+
+        public IReadOnlyCollection<UnregisteredEntry> ValidateRegistrationChildAnimatorStates(IEnumerable<ChildAnimatorState> targets, UnityEngine.Object parent, string memberName, ref HashSet<UnityEngine.Object> visitedObjSet)
+        {
+            int i = 0;
+            HashSet<UnregisteredEntry> entries = new();
+            foreach (ChildAnimatorState target in targets)
+            {
+                entries.UnionWith(ValidateRegistrationChildAnimatorState(target, parent, $"{memberName}[{i}]", ref visitedObjSet));
+                i++;
+            }
+            return entries;
+        }
+
+        private IReadOnlyCollection<UnregisteredEntry> ValidateRegistrationChildAnimatorState(ChildAnimatorState target, UnityEngine.Object parent, string memberName, ref HashSet<UnityEngine.Object> visitedObjSet)
+        {
+            return ValidateRegistrationAnimatorState(target.state, parent, $"{memberName}.{nameof(target.state)}", ref visitedObjSet);
+        }
+
+        private IReadOnlyCollection<UnregisteredEntry> ValidateRegistrationAnimatorState(AnimatorState target, UnityEngine.Object parent, string memberName, ref HashSet<UnityEngine.Object> visitedObjSet)
+        {
+            if (visitedObjSet.Contains(target)) return new UnregisteredEntry[0];
+            visitedObjSet.Add(target);
+            bool existPolicy = ValidateAndCreateUnregisteredEntry(target, parent, memberName, out UnregisteredEntry entry, out ClonePolicy policy);
+            if (!existPolicy) return new UnregisteredEntry[] { entry };
+            if (policy != ClonePolicy.Clone) return new UnregisteredEntry[0];
+
+            HashSet<UnregisteredEntry> entries = new();
+
+            entries.UnionWith(ValidateRegistrationAnimatorStateTransitions(target.transitions, target, nameof(target.transitions), ref visitedObjSet));
+            entries.UnionWith(ValidateRegistrationStateMachineBehaviours(target.behaviours, target, nameof(target.behaviours), ref visitedObjSet));
+
+            return entries;
+
+        }
+
+        public IReadOnlyCollection<UnregisteredEntry> ValidateRegistrationAnimatorTransitions(IEnumerable<AnimatorTransition> targets, UnityEngine.Object parent, string memberName, ref HashSet<UnityEngine.Object> visitedObjSet)
+        {
+            int i = 0;
+            HashSet<UnregisteredEntry> entries = new();
+            foreach (AnimatorTransition target in targets)
+            {
+                entries.UnionWith(ValidateRegistrationAnimatorTransition(target, parent, $"{memberName}[{i}]", ref visitedObjSet));
+                i++;
+            }
+            return entries;
+        }
+
+        private IReadOnlyCollection<UnregisteredEntry> ValidateRegistrationAnimatorTransition(AnimatorTransition target, UnityEngine.Object parent, string memberName, ref HashSet<UnityEngine.Object> visitedObjSet)
+        {
+            if (visitedObjSet.Contains(target)) return new UnregisteredEntry[0];
+            visitedObjSet.Add(target);
+            bool existPolicy = ValidateAndCreateUnregisteredEntry(target, parent, memberName, out UnregisteredEntry entry, out ClonePolicy policy);
+            if (!existPolicy) return new UnregisteredEntry[] { entry };
+            if (policy != ClonePolicy.Clone) return new UnregisteredEntry[0];
+
+            HashSet<UnregisteredEntry> entries = new();
+
+            entries.UnionWith(ValidateRegistrationAnimatorState(target.destinationState, target, nameof(target.destinationState), ref visitedObjSet));
+            entries.UnionWith(ValidateRegistrationAnimatorStateMachine(target.destinationStateMachine, target, nameof(target.destinationStateMachine), ref visitedObjSet));
+
+            return entries;
+
+        }
+
+        public IReadOnlyCollection<UnregisteredEntry> ValidateRegistrationAnimatorStateTransitions(IEnumerable<AnimatorStateTransition> targets, UnityEngine.Object parent, string memberName, ref HashSet<UnityEngine.Object> visitedObjSet)
+        {
+            int i = 0;
+            HashSet<UnregisteredEntry> entries = new();
+            foreach (AnimatorStateTransition target in targets)
+            {
+                entries.UnionWith(ValidateRegistrationAnimatorStateTransition(target, parent, $"{memberName}[{i}]", ref visitedObjSet));
+                i++;
+            }
+            return entries;
+        }
+
+        private IReadOnlyCollection<UnregisteredEntry> ValidateRegistrationAnimatorStateTransition(AnimatorStateTransition target, UnityEngine.Object parent, string memberName, ref HashSet<UnityEngine.Object> visitedObjSet)
+        {
+            if (visitedObjSet.Contains(target)) return new UnregisteredEntry[0];
+            visitedObjSet.Add(target);
+            bool existPolicy = ValidateAndCreateUnregisteredEntry(target, parent, memberName, out UnregisteredEntry entry, out ClonePolicy policy);
+            if (!existPolicy) return new UnregisteredEntry[] { entry };
+            if (policy != ClonePolicy.Clone) return new UnregisteredEntry[0];
+
+            HashSet<UnregisteredEntry> entries = new();
+
+            entries.UnionWith(ValidateRegistrationAnimatorState(target.destinationState, target, nameof(target.destinationState), ref visitedObjSet));
+            entries.UnionWith(ValidateRegistrationAnimatorStateMachine(target.destinationStateMachine, target, nameof(target.destinationStateMachine), ref visitedObjSet));
+
+            return entries;
+
+        }
+
+        public IReadOnlyCollection<UnregisteredEntry> ValidateRegistrationStateMachineBehaviours(IEnumerable<StateMachineBehaviour> targets, UnityEngine.Object parent, string memberName, ref HashSet<UnityEngine.Object> visitedObjSet)
+        {
+            int i = 0;
+            HashSet<UnregisteredEntry> entries = new();
+            foreach (StateMachineBehaviour target in targets)
+            {
+                entries.UnionWith(ValidateRegistrationStateMachineBehaviour(target, parent, $"{memberName}[{i}]", ref visitedObjSet));
+                i++;
+            }
+            return entries;
+        }
+
+        private IReadOnlyCollection<UnregisteredEntry> ValidateRegistrationStateMachineBehaviour(StateMachineBehaviour target, UnityEngine.Object parent, string memberName, ref HashSet<UnityEngine.Object> visitedObjSet)
+        {
+            // TODO:未実装 実装するかも未定
+            return new UnregisteredEntry[0];
+            //if (visitedObjSet.Contains(target)) return new UnregisteredEntry[0];
+            //visitedObjSet.Add(target);
+            //bool existPolicy = ValidateAndCreateUnregisteredEntry(target, parent, memberName, out UnregisteredEntry entry, out ClonePolicy policy);
+            //if (!existPolicy) return new UnregisteredEntry[] { entry };
+            //if (policy != ClonePolicy.Clone) return new UnregisteredEntry[0];
+            //
+            //HashSet<UnregisteredEntry> entries = new();
+            //
+            ////entries.UnionWith(ValidateRegistrationAnimatorControllerLayers(target., target, nameof(target.), ref visitedObjSet));
+            //
+            //return entries;
+        }
+
+        private bool ValidateAndCreateUnregisteredEntry(UnityEngine.Object target, UnityEngine.Object parent, string memberName, out UnregisteredEntry entry, out ClonePolicy policy)
+        {
+            entry = null;
+            if (_policyMap.TryGetValue(target, out policy) || target == null) return true;
+            entry = new(target, parent, memberName);
+            return false;
+        }
+
+
+        /// <summary>
+        /// 値が大きいほど優先度が高い。
+        /// SetPolicyIfAbsentは現在の設定より低い優先度のポリシーを無視する。
+        /// 新しいポリシーを追加する際は優先度順に並べること。
+        /// </summary>
+        public enum ClonePolicy
+        {
+            /// 未設定（このポリシーのオブジェクトをクローンしようとした場合、例外を吐く）
+            UnSetting,
+            /// nullとして扱う（切り離す）
+            Detach,
+            /// 元のオブジェクトへの参照を保持する
+            KeepReference,
+            /// クローンを生成する
+            Clone,
+        }
+
+        public record UnregisteredEntry
+        {
+            public UnityEngine.Object UnregisteredObject { get; }
+            public UnityEngine.Object ReferencedFrom { get; }
+            public string MemberName { get; }
+
+            public UnregisteredEntry(UnityEngine.Object unregisteredObject, UnityEngine.Object referencedFrom, string memberName)
+            {
+                UnregisteredObject = unregisteredObject;
+                ReferencedFrom = referencedFrom;
+                MemberName = memberName;
+            }
         }
     }
 }

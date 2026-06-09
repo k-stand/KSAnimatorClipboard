@@ -102,9 +102,9 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
             internal StateMachineBehaviour[] Behaviours;
         }
 
-        internal static HashSet<object> ListupObjectsInLayer(AnimatorControllerLayer layer)
+        internal static HashSet<UnityEngine.Object> ListupObjectsInLayer(AnimatorControllerLayer layer)
         {
-            List<object> containObjs = new() { layer.stateMachine };
+            List<UnityEngine.Object> containObjs = new() { layer.stateMachine };
             containObjs.AddRange(ListupObjectsInStateMachine(layer.stateMachine));
             containObjs.AddRange(GetAllOverrideStateMotionPairs(layer).Select(x => x.State));
             containObjs.AddRange(GetAllOverrideBehavioursPairs(layer).Select(x => x.State));
@@ -112,16 +112,17 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
             return containObjs.ToHashSet();
         }
 
-        internal static HashSet<object> ListupObjectsInStateMachine(AnimatorStateMachine stateMachine)
+        internal static HashSet<UnityEngine.Object> ListupObjectsInStateMachine(AnimatorStateMachine stateMachine)
         {
             if (stateMachine == null) { return new(); }
-            List<object> containObjs = new() { };
+            List<UnityEngine.Object> containObjs = new() { };
 
-            List<AnimatorStateMachine> searchQueue = new() { stateMachine };
+            Queue<AnimatorStateMachine> searchQueue = new() { };
+            searchQueue.Enqueue(stateMachine);
             List<AnimatorStateMachine> searchedList = new();
             while (searchQueue.Count > 0)
             {
-                AnimatorStateMachine curASM = searchQueue.Last();
+                AnimatorStateMachine curASM = searchQueue.Dequeue();
 
                 containObjs.AddRange(curASM.entryTransitions);
                 containObjs.AddRange(curASM.anyStateTransitions);
@@ -137,10 +138,12 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
                     containObjs.AddRange(curASM.GetStateMachineTransitions(innerStateMachine));
                 }
 
-                searchQueue.Remove(curASM);
                 searchedList.Add(curASM);
 
-                searchQueue.AddRange(innerStateMachines.Where(x => !searchedList.Contains(x)));
+                foreach (AnimatorStateMachine item in innerStateMachines.Where(x => !searchedList.Contains(x)))
+                {
+                    searchQueue.Enqueue(item);
+                }
             }
 
             return containObjs.ToHashSet();
@@ -236,43 +239,304 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
 
         private static bool RemoveUnusedSubAssets(UnityEngine.Object obj)
         {
+            // TODO:循環参照があると使用してなくても削除されないので、ルートからの到達可能性で削除するべき
             // Based on lilEditorToolbox by lilxyzw (MIT License)
             // https://github.com/lilxyzw/lilEditorToolbox/blob/8a7d26ee90d67be02499d2f4b64e5ac788d942ce/Editor/Utils/SubAssetCleaner.cs
 
-            bool isCleaned = false;
-            var path = AssetDatabase.GetAssetPath(obj);
-            while (true)
+            string path = AssetDatabase.GetAssetPath(obj);
+            HashSet<UnityEngine.Object> allAssets = AssetDatabase.LoadAllAssetsAtPath(path)
+                                         .Where(a => a != null)
+                                         .ToHashSet();
+
+            // ルートから到達可能なノードをBFSでマーク
+            HashSet<UnityEngine.Object> reachable = new();
+            Queue<UnityEngine.Object> queue = new();
+            queue.Enqueue(obj);
+
+            while (queue.Count > 0)
             {
-                var assets = AssetDatabase.LoadAllAssetsAtPath(path).Where(asset => asset);
-                var usedAssetsTemp = new HashSet<UnityEngine.Object>();
-                foreach (var asset in assets)
+                UnityEngine.Object current = queue.Dequeue();
+                if (!reachable.Add(current)) continue; // 訪問済みならスキップ
+
+                // SerializedObjectで子参照を辿る
+                using SerializedObject so = new(current);
+                SerializedProperty prop = so.GetIterator();
+                while (prop.Next(true))
                 {
-                    var so = new SerializedObject(asset);
-                    var prop = so.GetIterator();
-                    while (prop.Next(true))
+                    if (prop.propertyType != SerializedPropertyType.ObjectReference) continue;
+                    UnityEngine.Object referenced = prop.objectReferenceValue;
+                    if (referenced != null && allAssets.Contains(referenced) && !reachable.Contains(referenced))
                     {
-                        if (prop.propertyType == SerializedPropertyType.ObjectReference && prop.objectReferenceValue)
-                        {
-                            usedAssetsTemp.Add(prop.objectReferenceValue);
-                        }
+                        queue.Enqueue(referenced);
                     }
                 }
-                bool shouldContinue = false;
-                foreach (var asset in assets.Where(asset => !usedAssetsTemp.Contains(asset)))
-                {
-                    // Debug.Log($"[AnimatorClipboard] Remove from {obj.name}: {asset.name}");
-                    AssetDatabase.RemoveObjectFromAsset(asset);
-                    shouldContinue = true;
-                }
-                if (!shouldContinue) break;
-                isCleaned = true;
             }
-            return isCleaned;
+
+            // 到達不能なものを削除
+            UnityEngine.Object[] unreachable = allAssets.Except(reachable).ToArray();
+            foreach (UnityEngine.Object asset in unreachable)
+            {
+                AssetDatabase.RemoveObjectFromAsset(asset);
+            }
+
+            return unreachable.Length > 0;
+        }
+
+        public static IReadOnlyCollection<InvalidNullMember> ValidateCloneResult(UnityEngine.Object target) => ValidateCloneResultInternal(target);
+
+        public static IReadOnlyCollection<InvalidNullMember> ValidateCloneResults(IEnumerable<UnityEngine.Object> targets) => targets.SelectMany(t => ValidateCloneResult(t)).ToHashSet();
+
+        private static IReadOnlyCollection<InvalidNullMember> ValidateCloneResultInternal(object target)
+        {
+            if (target == null)
+            {
+                return new List<InvalidNullMember>();
+            }
+
+            HashSet<UnityEngine.Object> visitedObjSet = new();
+
+            IReadOnlyCollection<InvalidNullMember> unregisteredList = target switch
+            {
+                AnimatorController castedObj => ValidateAnimatorControllerCloneResult(castedObj, null, "", ref visitedObjSet),
+                AnimatorControllerLayer castedObj => ValidateAnimatorControllerLayerCloneResult(castedObj, null, "", ref visitedObjSet),
+                ChildAnimatorStateMachine castedObj => ValidateChildAnimatorStateMachineCloneResult(castedObj, null, "", ref visitedObjSet),
+                AnimatorStateMachine castedObj => ValidateAnimatorStateMachineCloneResult(castedObj, null, "", ref visitedObjSet),
+                ChildAnimatorState castedObj => ValidateChildAnimatorStateCloneResult(castedObj, null, "", ref visitedObjSet),
+                AnimatorState castedObj => ValidateAnimatorStateCloneResult(castedObj, null, "", ref visitedObjSet),
+                AnimatorTransition castedObj => ValidateAnimatorTransitionCloneResult(castedObj, null, "", ref visitedObjSet),
+                AnimatorStateTransition castedObj => ValidateAnimatorStateTransitionCloneResult(castedObj, null, "", ref visitedObjSet),
+                StateMachineBehaviour castedObj => ValidateStateMachineBehaviourCloneResult(castedObj, null, "", ref visitedObjSet),
+                _ => new InvalidNullMember[0],
+            };
+
+            return unregisteredList;
+        }
+
+        private static IReadOnlyCollection<InvalidNullMember> ValidateAnimatorControllerCloneResult(AnimatorController target, UnityEngine.Object parent, string memberName, ref HashSet<UnityEngine.Object> visitedObjSet)
+        {
+            if (target == null) return new InvalidNullMember[] { new(parent, memberName) };
+
+            if (visitedObjSet.Contains(target)) return new InvalidNullMember[0];
+            visitedObjSet.Add(target);
+
+            HashSet<InvalidNullMember> invalidNullMembers = new();
+
+            invalidNullMembers.UnionWith(ValidateAnimatorControllerLayersCloneResult(target.layers, target, nameof(target.layers), ref visitedObjSet));
+
+            return invalidNullMembers;
+        }
+
+        public static IReadOnlyCollection<InvalidNullMember> ValidateAnimatorControllerLayersCloneResult(IEnumerable<AnimatorControllerLayer> target, UnityEngine.Object parent, string memberName, ref HashSet<UnityEngine.Object> visitedObjSet)
+        {
+            int i = 0;
+            HashSet<InvalidNullMember> invalidNullMembers = new();
+            foreach (AnimatorControllerLayer acl in target)
+            {
+                invalidNullMembers.UnionWith(ValidateAnimatorControllerLayerCloneResult(acl, parent, $"{memberName}[{i}]", ref visitedObjSet));
+                i++;
+            }
+            return invalidNullMembers;
+        }
+
+        private static IReadOnlyCollection<InvalidNullMember> ValidateAnimatorControllerLayerCloneResult(AnimatorControllerLayer target, UnityEngine.Object parent, string memberName, ref HashSet<UnityEngine.Object> visitedObjSet)
+        {
+            if (target == null) return new InvalidNullMember[] { new(parent, memberName) };
+
+            HashSet<InvalidNullMember> invalidNullMembers = new();
+            invalidNullMembers.UnionWith(ValidateAnimatorStateMachineCloneResult(target.stateMachine, parent, $"{memberName}.{nameof(target.stateMachine)}", ref visitedObjSet));
+
+            StateMotionPair[] overrideStateMotionPairs = GetAllOverrideStateMotionPairs(target);
+            foreach (StateMotionPair pair in overrideStateMotionPairs)
+            {
+                invalidNullMembers.UnionWith(ValidateAnimatorStateCloneResult(pair.State, parent, $"{memberName}.m_Motions.m_State", ref visitedObjSet));
+            }
+            StateBehavioursPair[] overrideBehavioursPairs = GetAllOverrideBehavioursPairs(target);
+            foreach (StateBehavioursPair pair in overrideBehavioursPairs)
+            {
+                invalidNullMembers.UnionWith(ValidateAnimatorStateCloneResult(pair.State, parent, $"{memberName}.m_Behaviours.m_State", ref visitedObjSet));
+                invalidNullMembers.UnionWith(ValidateStateMachineBehavioursCloneResult(pair.Behaviours, parent, $"{memberName}.m_Behaviours.m_Behaviours", ref visitedObjSet));
+            }
+            return invalidNullMembers;
+        }
+
+        public static IReadOnlyCollection<InvalidNullMember> ValidateChildAnimatorStateMachinesCloneResult(IEnumerable<ChildAnimatorStateMachine> targets, UnityEngine.Object parent, string memberName, ref HashSet<UnityEngine.Object> visitedObjSet)
+        {
+            int i = 0;
+            HashSet<InvalidNullMember> invalidNullMembers = new();
+            foreach (ChildAnimatorStateMachine target in targets)
+            {
+                invalidNullMembers.UnionWith(ValidateChildAnimatorStateMachineCloneResult(target, parent, $"{memberName}[{i}]", ref visitedObjSet));
+                i++;
+            }
+            return invalidNullMembers;
+        }
+
+        private static IReadOnlyCollection<InvalidNullMember> ValidateChildAnimatorStateMachineCloneResult(ChildAnimatorStateMachine target, UnityEngine.Object parent, string memberName, ref HashSet<UnityEngine.Object> visitedObjSet)
+        {
+            return ValidateAnimatorStateMachineCloneResult(target.stateMachine, parent, $"{memberName}.{nameof(target.stateMachine)}", ref visitedObjSet);
+        }
+
+        private static IReadOnlyCollection<InvalidNullMember> ValidateAnimatorStateMachineCloneResult(AnimatorStateMachine target, UnityEngine.Object parent, string memberName, ref HashSet<UnityEngine.Object> visitedObjSet)
+        {
+            if (target == null) return new InvalidNullMember[] { new(parent, memberName) };
+
+            if (visitedObjSet.Contains(target)) return new InvalidNullMember[0];
+            visitedObjSet.Add(target);
+
+            HashSet<InvalidNullMember> invalidNullMembers = new();
+
+            invalidNullMembers.UnionWith(ValidateChildAnimatorStatesCloneResult(target.states, target, nameof(target), ref visitedObjSet));
+            invalidNullMembers.UnionWith(ValidateChildAnimatorStateMachinesCloneResult(target.stateMachines, target, nameof(target), ref visitedObjSet));
+            invalidNullMembers.UnionWith(ValidateAnimatorStateCloneResult(target.defaultState, target, nameof(target), ref visitedObjSet));
+            invalidNullMembers.UnionWith(ValidateAnimatorTransitionsCloneResult(target.entryTransitions, target, nameof(target), ref visitedObjSet));
+            invalidNullMembers.UnionWith(ValidateAnimatorStateTransitionsCloneResult(target.anyStateTransitions, target, nameof(target.anyStateTransitions), ref visitedObjSet));
+            int i = 0;
+            foreach (ChildAnimatorStateMachine curCASM in target.stateMachines)
+            {
+                //TODO:ここのネイティブコードでのm_StateMachineTransitionsが見れるかデバッグモードで確認
+                AnimatorTransition[] transitions = target.GetStateMachineTransitions(curCASM.stateMachine);
+                invalidNullMembers.UnionWith(ValidateAnimatorTransitionsCloneResult(transitions, target, $"StateMachineTransitions[{curCASM.stateMachine.name}]", ref visitedObjSet));
+                i++;
+            }
+            invalidNullMembers.UnionWith(ValidateStateMachineBehavioursCloneResult(target.behaviours, target, nameof(target), ref visitedObjSet));
+
+            return invalidNullMembers;
+
+        }
+
+        public static IReadOnlyCollection<InvalidNullMember> ValidateChildAnimatorStatesCloneResult(IEnumerable<ChildAnimatorState> targets, UnityEngine.Object parent, string memberName, ref HashSet<UnityEngine.Object> visitedObjSet)
+        {
+            int i = 0;
+            HashSet<InvalidNullMember> invalidNullMembers = new();
+            foreach (ChildAnimatorState target in targets)
+            {
+                invalidNullMembers.UnionWith(ValidateChildAnimatorStateCloneResult(target, parent, $"{memberName}[{i}]", ref visitedObjSet));
+                i++;
+            }
+            return invalidNullMembers;
+        }
+
+        private static IReadOnlyCollection<InvalidNullMember> ValidateChildAnimatorStateCloneResult(ChildAnimatorState target, UnityEngine.Object parent, string memberName, ref HashSet<UnityEngine.Object> visitedObjSet)
+        {
+            return ValidateAnimatorStateCloneResult(target.state, parent, $"{memberName}.{nameof(target.state)}", ref visitedObjSet);
+        }
+
+        private static IReadOnlyCollection<InvalidNullMember> ValidateAnimatorStateCloneResult(AnimatorState target, UnityEngine.Object parent, string memberName, ref HashSet<UnityEngine.Object> visitedObjSet)
+        {
+            if (target == null) return new InvalidNullMember[] { new(parent, memberName) };
+
+            if (visitedObjSet.Contains(target)) return new InvalidNullMember[0];
+            visitedObjSet.Add(target);
+
+            HashSet<InvalidNullMember> invalidNullMembers = new();
+
+            invalidNullMembers.UnionWith(ValidateAnimatorStateTransitionsCloneResult(target.transitions, target, nameof(target.transitions), ref visitedObjSet));
+            invalidNullMembers.UnionWith(ValidateStateMachineBehavioursCloneResult(target.behaviours, target, nameof(target.behaviours), ref visitedObjSet));
+
+            return invalidNullMembers;
+
+        }
+
+        public static IReadOnlyCollection<InvalidNullMember> ValidateAnimatorTransitionsCloneResult(IEnumerable<AnimatorTransition> targets, UnityEngine.Object parent, string memberName, ref HashSet<UnityEngine.Object> visitedObjSet)
+        {
+            int i = 0;
+            HashSet<InvalidNullMember> invalidNullMembers = new();
+            foreach (AnimatorTransition target in targets)
+            {
+                invalidNullMembers.UnionWith(ValidateAnimatorTransitionCloneResult(target, parent, $"{memberName}[{i}]", ref visitedObjSet));
+                i++;
+            }
+            return invalidNullMembers;
+        }
+
+        private static IReadOnlyCollection<InvalidNullMember> ValidateAnimatorTransitionCloneResult(AnimatorTransition target, UnityEngine.Object parent, string memberName, ref HashSet<UnityEngine.Object> visitedObjSet)
+        {
+            if (target == null) return new InvalidNullMember[] { new(parent, memberName) };
+
+            if (visitedObjSet.Contains(target)) return new InvalidNullMember[0];
+            visitedObjSet.Add(target);
+
+            HashSet<InvalidNullMember> invalidNullMembers = new();
+
+            invalidNullMembers.UnionWith(ValidateAnimatorStateCloneResult(target.destinationState, target, nameof(target.destinationState), ref visitedObjSet));
+            invalidNullMembers.UnionWith(ValidateAnimatorStateMachineCloneResult(target.destinationStateMachine, target, nameof(target.destinationStateMachine), ref visitedObjSet));
+
+            return invalidNullMembers;
+
+        }
+
+        public static IReadOnlyCollection<InvalidNullMember> ValidateAnimatorStateTransitionsCloneResult(IEnumerable<AnimatorStateTransition> targets, UnityEngine.Object parent, string memberName, ref HashSet<UnityEngine.Object> visitedObjSet)
+        {
+            int i = 0;
+            HashSet<InvalidNullMember> invalidNullMembers = new();
+            foreach (AnimatorStateTransition target in targets)
+            {
+                invalidNullMembers.UnionWith(ValidateAnimatorStateTransitionCloneResult(target, parent, $"{memberName}[{i}]", ref visitedObjSet));
+                i++;
+            }
+            return invalidNullMembers;
+        }
+
+        private static IReadOnlyCollection<InvalidNullMember> ValidateAnimatorStateTransitionCloneResult(AnimatorStateTransition target, UnityEngine.Object parent, string memberName, ref HashSet<UnityEngine.Object> visitedObjSet)
+        {
+            if (target == null) return new InvalidNullMember[] { new(parent, memberName) };
+
+            if (visitedObjSet.Contains(target)) return new InvalidNullMember[0];
+            visitedObjSet.Add(target);
+
+            HashSet<InvalidNullMember> invalidNullMembers = new();
+
+            if (!target.isExit)
+            {
+                invalidNullMembers.UnionWith(ValidateAnimatorStateCloneResult(target.destinationState, target, nameof(target.destinationState), ref visitedObjSet));
+                invalidNullMembers.UnionWith(ValidateAnimatorStateMachineCloneResult(target.destinationStateMachine, target, nameof(target.destinationStateMachine), ref visitedObjSet));
+            }
+
+            return invalidNullMembers;
+
+        }
+
+        public static IReadOnlyCollection<InvalidNullMember> ValidateStateMachineBehavioursCloneResult(IEnumerable<StateMachineBehaviour> targets, UnityEngine.Object parent, string memberName, ref HashSet<UnityEngine.Object> visitedObjSet)
+        {
+            int i = 0;
+            HashSet<InvalidNullMember> invalidNullMembers = new();
+            foreach (StateMachineBehaviour target in targets)
+            {
+                invalidNullMembers.UnionWith(ValidateStateMachineBehaviourCloneResult(target, parent, $"{memberName}[{i}]", ref visitedObjSet));
+                i++;
+            }
+            return invalidNullMembers;
+        }
+
+        private static IReadOnlyCollection<InvalidNullMember> ValidateStateMachineBehaviourCloneResult(StateMachineBehaviour target, UnityEngine.Object parent, string memberName, ref HashSet<UnityEngine.Object> visitedObjSet)
+        {
+            // TODO:未実装 実装するかも未定
+            return new InvalidNullMember[0];
+            //if (visitedObjSet.Contains(target)) return new InvalidNullMember[0];
+            //visitedObjSet.Add(target);
+            //
+            //HashSet<InvalidNullMember> invalidNullMembers = new();
+            //
+            ////invalidNullMembers.UnionWith(ValidateAnimatorControllerLayersCloneResult(target., target, nameof(target.), ref visitedObjSet));
+            //
+            //return invalidNullMembers;
         }
 
         private class RecursiveSearchContext
         {
             internal HashSet<object> SearchedObjects = new();
+        }
+
+        public record InvalidNullMember
+        {
+            UnityEngine.Object Parent { get; }
+            string MemberName { get; }
+
+            public InvalidNullMember(UnityEngine.Object parent, string memberName)
+            {
+                Parent = parent;
+                MemberName = memberName;
+            }
         }
     }
 }
