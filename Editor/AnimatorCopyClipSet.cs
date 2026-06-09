@@ -30,8 +30,6 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
 
         internal AnimatorCopyClipSet(IEnumerable<AnimatorControllerLayer> layers, AnimatorController parentController)
         {
-            _type = new Lazy<AnimatorCopyClipSetType>(GetClipSetType);
-
             ClipSetInit(layers);
             if (Type != AnimatorCopyClipSetType.Layers)
             {
@@ -50,8 +48,6 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
 
         internal AnimatorCopyClipSet(IEnumerable<object> objs, AnimatorStateMachine ancestorStateMachine)
         {
-            _type = new Lazy<AnimatorCopyClipSetType>(GetClipSetType);
-
             ClipSetInit(objs);
             if (Type != AnimatorCopyClipSetType.ChildState &&
                 Type != AnimatorCopyClipSetType.ChildStateMachine &&
