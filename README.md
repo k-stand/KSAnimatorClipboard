@@ -19,6 +19,9 @@
 [MIT License](https://github.com/k-stand/KSAnimatorClipboard/blob/main/LICENSE.txt)
 
 ## 更新履歴
+### [2026-06-09] 0.4.1  
+- AnimatorCopyClipSet.TypeでNullReferenceExceptionが出る問題の修正
+
 ### [2026-06-09] 0.4.0  
 - AnimatorCloner.ValidateRegistrations()メソッドを追加。ClonePolicyが未設定のオブジェクトを検出できます。
 - AnimatorClipboardUtility.ValidateCloneResult()メソッドを追加。Animator関連オブジェクトが無効な参照を保有していないか検証できます。
