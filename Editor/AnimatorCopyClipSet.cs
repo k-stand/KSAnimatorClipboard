@@ -12,8 +12,15 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
     {
         public ReadOnlyCollection<AnimatorCopyClip> Clips { get; private set; }
 
-        private readonly Lazy<AnimatorCopyClipSetType> _type;
-        public AnimatorCopyClipSetType Type => _type.Value;
+        private AnimatorCopyClipSetType type = AnimatorCopyClipSetType.None;
+        public AnimatorCopyClipSetType Type
+        {
+            get
+            {
+                if (type == AnimatorCopyClipSetType.None) { type = GetClipSetType(); }
+                return type;
+            }
+        }
 
         public AnimatorController ParentController { get; private set; }
 
@@ -335,6 +342,7 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
 
         public enum AnimatorCopyClipSetType
         {
+            None,
             Layers,
             Transition,
             StateTransition,
