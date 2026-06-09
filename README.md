@@ -19,7 +19,10 @@
 [MIT License](https://github.com/k-stand/KSAnimatorClipboard/blob/main/LICENSE.txt)
 
 ## 更新履歴
-### [2026-06-09] 0.4.1  
+### [2026-06-10] 0.4.2  
+- AnimatorCopyClipSet.TypeでNullReferenceExceptionが出る問題の修正の再修正
+
+### [2026-06-10] 0.4.1  
 - AnimatorCopyClipSet.TypeでNullReferenceExceptionが出る問題の修正
 
 ### [2026-06-09] 0.4.0  
