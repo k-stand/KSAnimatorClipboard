@@ -4,7 +4,7 @@ using System.Linq;
 
 namespace com.github.k_stand.ksanimatorclipboard.editor
 {
-    public abstract class CopyClipBase<T> where T : CopyClipBase<T>
+    public abstract class CopyClipBase
     {
         public object Object { get; private protected set; }
 

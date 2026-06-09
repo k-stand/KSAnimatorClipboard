@@ -1,9 +1,12 @@
 using System.Collections.Generic;
+using System.Linq;
 
 namespace com.github.k_stand.ksanimatorclipboard.editor
 {
-    public class AnimatorCopyClip : CopyClipBase<AnimatorCopyClip>
+    public class AnimatorCopyClip : CopyClipBase
     {
+        private protected Dictionary<ContextKey, object> AnimatorContexts { get; set; } = new();
+
         internal AnimatorCopyClip(object obj) : base(obj) { }
 
         public AnimatorCopyClip Clone()
@@ -20,29 +23,46 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
         {
             AnimatorCopyClip cloneClip = cloner.TryCloneObject(Object, out object cloneObj) ? Clone(cloneObj) : Clone();
 
-            KeyValuePair<string, object>[] allContext = cloneClip.GetAllContext();
-            foreach (KeyValuePair<string, object> context in allContext)
+            KeyValuePair<ContextKey, object>[] allContext = GetAllAnimatorContext();
+            foreach (KeyValuePair<ContextKey, object> context in allContext)
             {
                 object cloneContextVal = cloner.TryCloneObject(context.Value, out object tempClone) ? tempClone : context.Value;
-                cloneClip.SetContext(context.Key, cloneContextVal);
+                cloneClip.SetAnimatorContext(context.Key, cloneContextVal);
             }
 
             return cloneClip;
         }
 
-        internal static class ContextKey
+        internal void SetAnimatorContext(ContextKey key, object value)
         {
-            internal static readonly string Parent = "Parent";
-            internal static readonly string PropertyName = "PropertyName";
+            AnimatorContexts[key] = value;
+        }
+
+        internal bool TryGetAnimatorContext(ContextKey key, out object value)
+        {
+            return AnimatorContexts.TryGetValue(key, out value);
+        }
+
+        internal KeyValuePair<ContextKey, object>[] GetAllAnimatorContext()
+        {
+            return AnimatorContexts.ToArray();
+        }
+
+        internal enum ContextKey
+        {
+            Parent,
+            PropertyName,
         }
 
         internal static class ContextValue
         {
-            internal static class PropertyName
+            internal enum PropertyName
             {
-                internal static readonly string m_EntryTransitions = "m_EntryTransitions";
-                internal static readonly string m_StateMachineTransitions = "m_StateMachineTransitions";
-                internal static readonly string m_AnyStateTransitions = "m_AnyStateTransitions";
+                m_EntryTransitions,
+                m_StateMachineTransitions,
+                m_AnyStateTransitions,
+                m_Transitions,
+                m_AnimatorLayers,
             }
         }
     }
