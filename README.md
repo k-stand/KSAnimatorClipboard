@@ -55,7 +55,9 @@ AnimatorClipboard.PasteIntoStateMachine(cloned, destStateMachine);
 [MIT License](https://github.com/k-stand/KSAnimatorClipboard/blob/main/LICENSE.txt)
 
 ## 更新履歴
-### [2026-07-13] 0.5.0  
+### [2026-07-24] 0.5.1  
+- README.mdを修正
+### [2026-07-24] 0.5.0  
 - コピー対象種別ごとの判定ロジックをKindレジストリ方式に再設計(内部実装、破壊的変更を含む)
 - AnimatorClipboard.Copy(Behaviour)をCopy(StateMachineBehaviour)に修正(型の誤りを修正、破壊的変更)
 - 重複していたAnimatorController探索処理をAnimatorGraphSchema/AnimatorGraphTraversalに統一し、公開範囲をinternalに整理
