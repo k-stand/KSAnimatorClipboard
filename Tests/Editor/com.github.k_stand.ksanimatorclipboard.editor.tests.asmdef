@@ -1,0 +1,23 @@
+{
+    "name": "com.github.k_stand.ksanimatorclipboard.editor.tests",
+    "rootNamespace": "",
+    "references": [
+        "com.github.k_stand.ksanimatorclipboard.editor"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false,
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
+}
