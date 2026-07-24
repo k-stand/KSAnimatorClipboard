@@ -5,14 +5,26 @@ using System.Linq;
 using UnityEditor;
 using UnityEditor.Animations;
 using UnityEngine;
+using com.github.k_stand.ksanimatorclipboard.editor.Copying;
 
 namespace com.github.k_stand.ksanimatorclipboard.editor
 {
+    /// <summary>
+    /// AnimatorClipboard.Copy系メソッドの戻り値として、コピーされたAnimatorController関連オブジェクトの集合を保持します。
+    /// </summary>
     public class AnimatorCopyClipSet
     {
+        /// <summary>
+        /// コピーされた個々のオブジェクトを表すクリップの一覧を取得します。
+        /// </summary>
         public ReadOnlyCollection<AnimatorCopyClip> Clips { get; private set; }
 
         private AnimatorCopyClipSetType type = AnimatorCopyClipSetType.None;
+
+        /// <summary>
+        /// Clipsの内容から判定される、このAnimatorCopyClipSetの種別を取得します。
+        /// Paste系メソッドはこの値を見て、自身が要求している種別と一致するかどうかを検証します。
+        /// </summary>
         public AnimatorCopyClipSetType Type
         {
             get
@@ -22,19 +34,32 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
             }
         }
 
+        /// <summary>
+        /// Layers種別でコピーされた場合の、コピー元レイヤーが属していた親AnimatorControllerを取得します。
+        /// レイヤーが指定された親AnimatorControllerに含まれていなかった場合や、Layers種別以外の場合はnullになります。
+        /// </summary>
         public AnimatorController ParentController { get; private set; }
 
+        /// <summary>
+        /// AnimatorStateMachine配下のオブジェクトとしてコピーされた場合の、コピー元の共通の祖先AnimatorStateMachineを取得します。
+        /// コピー対象が指定された祖先の子孫でなかった場合や、対象外の種別の場合はnullになります。
+        /// </summary>
         public AnimatorStateMachine AncestorStateMachine { get; private set; }
+
+        /// <summary>
+        /// コピー時に指定した親AnimatorController/祖先AnimatorStateMachineと、実際のコピー対象が一致しなかった場合にtrueになります。
+        /// </summary>
+        public bool IsAncestorMismatched { get; private set; }
 
         internal AnimatorCopyClipSet(AnimatorControllerLayer layer, AnimatorController parentController) : this(new AnimatorControllerLayer[] { layer }, parentController) { }
 
         internal AnimatorCopyClipSet(IEnumerable<AnimatorControllerLayer> layers, AnimatorController parentController)
         {
             ClipSetInit(layers);
-            if (Type != AnimatorCopyClipSetType.Layers)
-            {
-                throw new ArgumentException("指定されたオブジェクトが不正です");
-            }
+            // Type不一致の場合、AncestorSetting/ContextsSettingを行わず未初期化のまま返す。
+            // 妥当性はAnimatorClipboard.TryCopyが呼び出し後にTypeを見て判定する前提であり、
+            // このコンストラクタを直接使う場合はTypeを確認してから使うこと。
+            if (Type != AnimatorCopyClipSetType.Layers) return;
 
             AncestorSetting(layers, parentController);
             ContextsSetting(parentController);
@@ -49,28 +74,24 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
         internal AnimatorCopyClipSet(IEnumerable<object> objs, AnimatorStateMachine ancestorStateMachine)
         {
             ClipSetInit(objs);
-            if (Type != AnimatorCopyClipSetType.ChildState &&
-                Type != AnimatorCopyClipSetType.ChildStateMachine &&
-                Type != AnimatorCopyClipSetType.Transition &&
-                Type != AnimatorCopyClipSetType.StateTransition &&
-                Type != AnimatorCopyClipSetType.InStateMachineObjects)
-            {
-                throw new ArgumentException("指定されたオブジェクトが不正です");
-            }
+            // Type不一致の場合、AncestorSetting/ContextsSettingを行わず未初期化のまま返す。
+            // 妥当性はAnimatorClipboard.TryCopyが呼び出し後にTypeを見て判定する前提であり、
+            // このコンストラクタを直接使う場合はTypeを確認してから使うこと。
+            if (!Type.IsInStateMachineCategory()) return;
 
             AncestorSetting(objs, ancestorStateMachine);
             ContextsSetting(ancestorStateMachine);
         }
 
-        internal AnimatorCopyClipSet(Behaviour behaviour) : this(new Behaviour[] { behaviour }) { }
+        internal AnimatorCopyClipSet(StateMachineBehaviour behaviour) : this(new StateMachineBehaviour[] { behaviour }) { }
 
-        internal AnimatorCopyClipSet(IEnumerable<Behaviour> behaviours)
+        internal AnimatorCopyClipSet(IEnumerable<StateMachineBehaviour> behaviours)
         {
             ClipSetInit(behaviours);
-            if (Type != AnimatorCopyClipSetType.Behaviours)
-            {
-                throw new ArgumentException("指定されたオブジェクトが不正です");
-            }
+            // Type不一致の場合、ContextsSettingを行わず未初期化のまま返す。
+            // 妥当性はAnimatorClipboard.TryCopyが呼び出し後にTypeを見て判定する前提であり、
+            // このコンストラクタを直接使う場合はTypeを確認してから使うこと。
+            if (Type != AnimatorCopyClipSetType.Behaviours) return;
 
             ContextsSetting();
         }
@@ -94,13 +115,35 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
             AncestorStateMachine = ancestorStateMachine;
         }
 
-        public AnimatorCopyClipSet Clone()
+        /// <summary>
+        /// Clipsに含まれる全てのオブジェクトを複製した、新しいAnimatorCopyClipSetを作成します。
+        /// </summary>
+        /// <returns>複製されたAnimatorCopyClipSet。</returns>
+        public AnimatorCopyClipSet Clone() => Clone(out var _);
+
+        /// <summary>
+        /// Clipsに含まれる全てのオブジェクトを複製した、新しいAnimatorCopyClipSetを作成します。
+        /// </summary>
+        /// <param name="clonedMap">複製元オブジェクトから複製後オブジェクトへのマップ。</param>
+        /// <returns>複製されたAnimatorCopyClipSet。</returns>
+        public AnimatorCopyClipSet Clone(out Dictionary<UnityEngine.Object, UnityEngine.Object> clonedMap)
         {
             AnimatorCloner cloner = new() { DefaultPolicy = AnimatorCloner.ClonePolicy.KeepReference };
-            cloner.SetRangeClonePolicy(Clips.Select(x => x.Object).OfType<UnityEngine.Object>(), AnimatorCloner.ClonePolicy.Clone);
-            return Clone(cloner);
+            cloner.SetRangeClonePolicy(Clips.SelectMany(GetCloneScope), AnimatorCloner.ClonePolicy.Clone);
+            AnimatorCopyClipSet cloneClipSet = Clone(cloner);
+            clonedMap = cloner.GetClonedMap();
+            return cloneClipSet;
         }
 
+        private static IEnumerable<UnityEngine.Object> GetCloneScope(AnimatorCopyClip clip) =>
+            AnimatorCopyObjectKindRegistry.Shared.Resolve(clip.Type)?.GetCloneScope(clip.Object) ?? Array.Empty<UnityEngine.Object>();
+
+        /// <summary>
+        /// 指定したAnimatorClonerを使ってClipsに含まれる全てのオブジェクトを複製した、新しいAnimatorCopyClipSetを作成します。
+        /// クローン対象の範囲やClonePolicyの設定は、呼び出し側が事前にclonerへ設定しておく必要があります。
+        /// </summary>
+        /// <param name="cloner">クローンに使用するAnimatorCloner。</param>
+        /// <returns>複製されたAnimatorCopyClipSet。</returns>
         public AnimatorCopyClipSet Clone(AnimatorCloner cloner)
         {
             List<AnimatorCopyClip> cloneClips = new();
@@ -132,7 +175,7 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
                 }
                 else
                 {
-                    // TODO:警告を出しつつ処理を続行するパターンで、呼び出し側が気づかない可能性があります。例外にするか、戻り値で検出できる設計にするか検討の余地があります。
+                    IsAncestorMismatched = true;
                     Debug.LogWarning("指定された親AnimatorControllerに含まれていないAnimatorControllerLayerがコピーされました。\n親AnimatorControllerは未指定状態になります");
                 }
             }
@@ -143,7 +186,7 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
             if (ancestorStateMachine != null)
             {
                 HashSet<object> descendantObjs = new() { ancestorStateMachine };
-                descendantObjs.UnionWith(AnimatorClipboardUtility.ListupObjectsInStateMachine(ancestorStateMachine));
+                descendantObjs.UnionWith(AnimatorGraphTraversal.ListupObjectsInStateMachine(ancestorStateMachine));
 
                 if (
                     objs.All(o => descendantObjs.Contains(o) ||
@@ -156,7 +199,7 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
                 }
                 else
                 {
-                    // TODO:警告を出しつつ処理を続行するパターンで、呼び出し側が気づかない可能性があります。例外にするか、戻り値で検出できる設計にするか検討の余地があります。
+                    IsAncestorMismatched = true;
                     Debug.LogWarning("指定されたAnimatorStateMachineの子孫に含まれていないオブジェクトがコピーされました。\n先祖AnimatorStateMachineは未指定状態になります");
                 }
             }
@@ -171,7 +214,7 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
         private void ContextsSetting(AnimatorStateMachine ancestorStateMachine)
         {
             HashSet<object> relatedObjs = new() { ancestorStateMachine };
-            relatedObjs.UnionWith(AnimatorClipboardUtility.ListupObjectsInStateMachine(ancestorStateMachine));
+            relatedObjs.UnionWith(AnimatorGraphTraversal.ListupObjectsInStateMachine(ancestorStateMachine));
             ContextsSettingInternal(relatedObjs);
         }
 
@@ -281,71 +324,76 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
             }
         }
 
-        private AnimatorCopyClip CreateClipBase(object obj) => obj switch
+        private AnimatorCopyClip CreateClipBase(object obj)
         {
-            AnimatorControllerLayer castedObj => new AnimatorCopyClip(castedObj),
-            AnimatorState castedObj => new AnimatorCopyClip(new ChildAnimatorState() { state = castedObj }),
-            AnimatorStateMachine castedObj => new AnimatorCopyClip(new ChildAnimatorStateMachine() { stateMachine = castedObj }),
-            ChildAnimatorState castedObj => new AnimatorCopyClip(castedObj),
-            ChildAnimatorStateMachine castedObj => new AnimatorCopyClip(castedObj),
-            AnimatorTransition castedObj => new AnimatorCopyClip(castedObj),
-            AnimatorStateTransition castedObj => new AnimatorCopyClip(castedObj),
-            Behaviour castedObj => new AnimatorCopyClip(castedObj),
-            _ => new AnimatorCopyClip(obj),
-        };
+            if (obj == null)
+            {
+                throw new ArgumentNullException(nameof(obj));
+            }
+
+            object normalized = AnimatorCopyObjectKindRegistry.Shared.Normalize(obj);
+            if (AnimatorCopyObjectKindRegistry.Shared.Resolve(normalized.GetType()) == null)
+            {
+                throw new ArgumentException($"コピー対象として未対応の型です: {normalized.GetType().FullName}", nameof(obj));
+            }
+
+            return new AnimatorCopyClip(normalized);
+        }
 
         private AnimatorCopyClipSetType GetClipSetType()
         {
-            Type[] containTypes = Clips.Select(x => x.Type).Distinct().ToArray();
-            if (containTypes.Length == 1)
-            {
-                if (containTypes[0] == typeof(AnimatorControllerLayer))
-                    return AnimatorCopyClipSetType.Layers;
-                if (containTypes[0] == typeof(Behaviour))
-                    return AnimatorCopyClipSetType.Behaviours;
-                if (containTypes[0] == typeof(ChildAnimatorState) ||
-                    containTypes[0] == typeof(ChildAnimatorStateMachine) ||
-                    containTypes[0] == typeof(AnimatorTransition) ||
-                    containTypes[0] == typeof(AnimatorStateTransition))
-                {
-                    if (Clips.Count >= 2)
-                        // 二つ以上のClipでInStateMachineObjectsになるのはCopySettingなどに対応しているかの区別のため
-                        return AnimatorCopyClipSetType.InStateMachineObjects;
-                    if (containTypes[0] == typeof(ChildAnimatorState))
-                        return AnimatorCopyClipSetType.ChildState;
-                    if (containTypes[0] == typeof(ChildAnimatorStateMachine))
-                        return AnimatorCopyClipSetType.ChildStateMachine;
-                    if (containTypes[0] == typeof(AnimatorTransition))
-                        return AnimatorCopyClipSetType.Transition;
-                    if (containTypes[0] == typeof(AnimatorStateTransition))
-                        return AnimatorCopyClipSetType.StateTransition;
-                }
+            IAnimatorCopyObjectKind[] kinds = Clips
+                .Select(x => AnimatorCopyObjectKindRegistry.Shared.Resolve(x.Type))
+                .ToArray();
 
+            if (Array.Exists(kinds, k => k == null))
+            {
                 return AnimatorCopyClipSetType.Other;
             }
 
-            Type[] inLayerTypes = new Type[] { typeof(ChildAnimatorState), typeof(ChildAnimatorStateMachine), typeof(AnimatorTransition), typeof(AnimatorStateTransition) };
-            if (2 <= containTypes.Length && containTypes.Length <= inLayerTypes.Length)
+            IAnimatorCopyObjectKind[] distinctKinds = kinds.Distinct().ToArray();
+
+            if (distinctKinds.Length == 1)
             {
-                bool allContainInLayerTypes = containTypes.All(t => inLayerTypes.Contains(t));
-                if (allContainInLayerTypes)
+                IAnimatorCopyObjectKind kind = distinctKinds[0];
+                if (kind.IsInStateMachineObject && Clips.Count >= 2)
+                {
                     return AnimatorCopyClipSetType.InStateMachineObjects;
-                return AnimatorCopyClipSetType.Other;
+                }
+
+                return kind.SingleClipSetType;
+            }
+
+            if (distinctKinds.Length > 0 && Array.TrueForAll(distinctKinds, k => k.IsInStateMachineObject))
+            {
+                return AnimatorCopyClipSetType.InStateMachineObjects;
             }
 
             return AnimatorCopyClipSetType.Other;
         }
 
+        /// <summary>
+        /// AnimatorCopyClipSetが表しているコピー対象オブジェクトの種別です。
+        /// </summary>
         public enum AnimatorCopyClipSetType
         {
+            /// <summary>種別が未計算であることを示す内部初期状態。Typeプロパティがこの値を返すことはありません。</summary>
             None,
+            /// <summary>AnimatorControllerLayerのコピー。</summary>
             Layers,
+            /// <summary>AnimatorTransitionのコピー。</summary>
             Transition,
+            /// <summary>AnimatorStateTransitionのコピー。</summary>
             StateTransition,
+            /// <summary>ChildAnimatorStateのコピー。</summary>
             ChildState,
+            /// <summary>ChildAnimatorStateMachineのコピー。</summary>
             ChildStateMachine,
+            /// <summary>AnimatorStateMachine配下のオブジェクトを、複数件または複数種別にまたがってコピーした場合。</summary>
             InStateMachineObjects,
+            /// <summary>StateMachineBehaviourのコピー。</summary>
             Behaviours,
+            /// <summary>上記いずれにも該当しない、またはコピー対象として未対応の型を含む場合。</summary>
             Other
         }
     }
