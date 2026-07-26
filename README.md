@@ -11,12 +11,9 @@ Unity Editor拡張ライブラリです。
 
 クローン時、参照先オブジェクトをどう扱うか(複製する/参照を維持する/切り離してnullにする/未設定として例外を出す)は
 `AnimatorCloner.ClonePolicy`(`Clone`/`KeepReference`/`Detach`/`UnSetting`)として、オブジェクトの種別(Kind)ごとに
-登録します。標準で用意されていない型への対応や、パラメーター整合性チェック・クローン結果検証への参加も、
-Kindレジストリやプラグイン機構(`IParameterReferenceResolver`、`IStateMachineBehaviourCloneResultValidator`など)を
+登録します。標準で用意されていない型への対応や、クローン結果検証への参加も、
+Kindレジストリやプラグイン機構(`IStateMachineBehaviourCloneResultValidator`など)を
 通じて拡張できます。
-
-VRChat Avatars SDK固有の型(`VRCAvatarParameterDriver`など)への対応は、本パッケージではなく
-[KS Animator Clipboard (VRChat Avatars)](https://github.com/k-stand/KSAnimatorClipboard.VRChatAvatars)が提供します。
 
 NDMFのVirtual Animator API(`nadena.dev.ndmf.animator`)向けの同等機能は
 `com.github.k-stand.ksanimatorclipboard.ndmf`パッケージが提供します。
@@ -55,6 +52,10 @@ AnimatorClipboard.PasteIntoStateMachine(cloned, destStateMachine);
 [MIT License](https://github.com/k-stand/KSAnimatorClipboard/blob/main/LICENSE.txt)
 
 ## 更新履歴
+### [2026-07-26] 0.6.0  
+- VRChatAvatars SDK固有の型への対応窓口だった`IParameterReferenceResolver`/`ParameterReferenceResolverRegistry`を削除(破壊的変更)。StateMachineBehaviourが参照するパラメーターは整合性チェックの検出対象外になりました
+- README.mdからVRChatAvatars関連の記述を削除(本パッケージはVRChatAvatarsと無関係な汎用ライブラリのため)
+
 ### [2026-07-24] 0.5.1  
 - README.mdを修正
 ### [2026-07-24] 0.5.0  

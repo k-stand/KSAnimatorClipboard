@@ -5,7 +5,6 @@ using NUnit.Framework;
 using UnityEditor.Animations;
 using UnityEngine;
 using com.github.k_stand.ksanimatorclipboard.editor;
-using com.github.k_stand.ksanimatorclipboard.editor.CrossController;
 
 namespace com.github.k_stand.ksanimatorclipboard.editor.tests
 {
@@ -75,7 +74,7 @@ namespace com.github.k_stand.ksanimatorclipboard.editor.tests
         }
 
         [Test]
-        public void FindMissingParameters_IgnoresStateMachineBehaviour_WhenNoResolverRegistered()
+        public void FindMissingParameters_IgnoresStateMachineBehaviourReferences()
         {
             AnimatorController controller = Create<AnimatorController>();
             DummyStateMachineBehaviour behaviour = Track(ScriptableObject.CreateInstance<DummyStateMachineBehaviour>());
@@ -87,29 +86,6 @@ namespace com.github.k_stand.ksanimatorclipboard.editor.tests
             IReadOnlyList<string> missing = AnimatorClipboardParameterConsistency.FindMissingParameters(clipSet, controller);
 
             Assert.IsEmpty(missing);
-        }
-
-        [Test]
-        public void FindMissingParameters_DetectsMissingParameter_ViaRegisteredResolver()
-        {
-            ParameterReferenceResolverRegistry.Shared.Register(new StubBehaviourResolver());
-            try
-            {
-                AnimatorController controller = Create<AnimatorController>();
-                DummyStateMachineBehaviour behaviour = Track(ScriptableObject.CreateInstance<DummyStateMachineBehaviour>());
-                AnimatorState state = Create<AnimatorState>();
-                state.behaviours = new StateMachineBehaviour[] { behaviour };
-                ChildAnimatorState childState = new() { state = state };
-                AnimatorCopyClipSet clipSet = AnimatorClipboard.Copy(childState);
-
-                IReadOnlyList<string> missing = AnimatorClipboardParameterConsistency.FindMissingParameters(clipSet, controller);
-
-                CollectionAssert.AreEquivalent(new[] { "StubParam" }, missing);
-            }
-            finally
-            {
-                ParameterReferenceResolverRegistry.Shared.Unregister(typeof(DummyStateMachineBehaviour));
-            }
         }
 
         [Test]
@@ -126,13 +102,6 @@ namespace com.github.k_stand.ksanimatorclipboard.editor.tests
             IReadOnlyList<string> missing = AnimatorClipboardParameterConsistency.FindMissingParameters(clipSet, controller);
 
             CollectionAssert.AreEquivalent(new[] { "Speed" }, missing);
-        }
-
-        private sealed class StubBehaviourResolver : IParameterReferenceResolver
-        {
-            public Type BehaviourType => typeof(DummyStateMachineBehaviour);
-
-            public IEnumerable<string> GetReferencedParameterNames(StateMachineBehaviour behaviour) => new[] { "StubParam" };
         }
     }
 }
