@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor.Animations;
-using UnityEngine;
 
 namespace com.github.k_stand.ksanimatorclipboard.editor
 {

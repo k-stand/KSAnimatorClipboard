@@ -11,9 +11,9 @@ Unity Editor拡張ライブラリです。
 
 クローン時、参照先オブジェクトをどう扱うか(複製する/参照を維持する/切り離してnullにする/未設定として例外を出す)は
 `AnimatorCloner.ClonePolicy`(`Clone`/`KeepReference`/`Detach`/`UnSetting`)として、オブジェクトの種別(Kind)ごとに
-登録します。標準で用意されていない型への対応や、クローン結果検証への参加も、
-Kindレジストリやプラグイン機構(`IStateMachineBehaviourCloneResultValidator`など)を
-通じて拡張できます。
+登録します。標準で用意されていない型への対応や、クローン結果検証への参加は、内部的にはKindレジストリやプラグイン機構
+(`IStateMachineBehaviourCloneResultValidator`など)によって実現されていますが、これらは本パッケージ内部限定の
+仕組みであり、外部パッケージから拡張することはできません。
 
 NDMFのVirtual Animator API(`nadena.dev.ndmf.animator`)向けの同等機能は
 `com.github.k-stand.ksanimatorclipboard.ndmf`パッケージが提供します。
