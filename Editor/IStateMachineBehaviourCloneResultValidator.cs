@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace com.github.k_stand.ksanimatorclipboard.editor
+namespace com.github.k_stand.ksanimatorcopyengine.editor
 {
     internal interface IStateMachineBehaviourCloneResultValidator
     {

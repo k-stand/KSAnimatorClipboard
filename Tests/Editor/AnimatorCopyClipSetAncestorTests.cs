@@ -1,10 +1,10 @@
 using NUnit.Framework;
 using UnityEditor.Animations;
-using com.github.k_stand.ksanimatorclipboard.editor;
+using com.github.k_stand.ksanimatorcopyengine.editor;
 
-namespace com.github.k_stand.ksanimatorclipboard.editor.tests
+namespace com.github.k_stand.ksanimatorcopyengine.editor.tests
 {
-    public class AnimatorCopyClipSetAncestorTests : AnimatorClipboardTestFixtureBase
+    public class AnimatorCopyClipSetAncestorTests : AnimatorCopyEngineTestFixtureBase
     {
         [Test]
         public void Layer_ContainedInParentController_IsNotAncestorMismatched()
@@ -14,7 +14,7 @@ namespace com.github.k_stand.ksanimatorclipboard.editor.tests
             AnimatorControllerLayer layer = new() { name = "Layer1", stateMachine = stateMachine };
             parentController.layers = new[] { layer };
 
-            AnimatorCopyClipSet clipSet = AnimatorClipboard.Copy(layer, parentController);
+            AnimatorCopyClipSet clipSet = AnimatorCopyEngine.Copy(layer, parentController);
 
             Assert.IsFalse(clipSet.IsAncestorMismatched);
             Assert.AreSame(parentController, clipSet.ParentController);
@@ -30,7 +30,7 @@ namespace com.github.k_stand.ksanimatorclipboard.editor.tests
             AnimatorStateMachine stateMachine = Create<AnimatorStateMachine>();
             AnimatorControllerLayer layer = new() { name = "Layer1", stateMachine = stateMachine };
 
-            AnimatorCopyClipSet clipSet = AnimatorClipboard.Copy(layer, parentController);
+            AnimatorCopyClipSet clipSet = AnimatorCopyEngine.Copy(layer, parentController);
 
             Assert.IsTrue(clipSet.IsAncestorMismatched);
             Assert.IsNull(clipSet.ParentController);
@@ -44,7 +44,7 @@ namespace com.github.k_stand.ksanimatorclipboard.editor.tests
             ChildAnimatorState childState = new() { state = state };
             ancestorStateMachine.states = new[] { childState };
 
-            AnimatorCopyClipSet clipSet = AnimatorClipboard.Copy(childState, ancestorStateMachine);
+            AnimatorCopyClipSet clipSet = AnimatorCopyEngine.Copy(childState, ancestorStateMachine);
 
             Assert.IsFalse(clipSet.IsAncestorMismatched);
             Assert.AreSame(ancestorStateMachine, clipSet.AncestorStateMachine);
@@ -58,7 +58,7 @@ namespace com.github.k_stand.ksanimatorclipboard.editor.tests
             ChildAnimatorState childState = new() { state = state };
             // ancestorStateMachineの子孫としては登録しない
 
-            AnimatorCopyClipSet clipSet = AnimatorClipboard.Copy(childState, ancestorStateMachine);
+            AnimatorCopyClipSet clipSet = AnimatorCopyEngine.Copy(childState, ancestorStateMachine);
 
             Assert.IsTrue(clipSet.IsAncestorMismatched);
             Assert.IsNull(clipSet.AncestorStateMachine);

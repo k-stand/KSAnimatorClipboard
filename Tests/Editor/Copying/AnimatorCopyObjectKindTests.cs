@@ -2,13 +2,13 @@ using System.Linq;
 using NUnit.Framework;
 using UnityEditor.Animations;
 using UnityEngine;
-using com.github.k_stand.ksanimatorclipboard.editor;
-using com.github.k_stand.ksanimatorclipboard.editor.Copying;
-using com.github.k_stand.ksanimatorclipboard.editor.tests;
+using com.github.k_stand.ksanimatorcopyengine.editor;
+using com.github.k_stand.ksanimatorcopyengine.editor.Copying;
+using com.github.k_stand.ksanimatorcopyengine.editor.tests;
 
-namespace com.github.k_stand.ksanimatorclipboard.editor.tests.Copying
+namespace com.github.k_stand.ksanimatorcopyengine.editor.tests.Copying
 {
-    public class AnimatorCopyObjectKindTests : AnimatorClipboardTestFixtureBase
+    public class AnimatorCopyObjectKindTests : AnimatorCopyEngineTestFixtureBase
     {
         [Test]
         public void LayerCopyObjectKind_HasExpectedProperties()

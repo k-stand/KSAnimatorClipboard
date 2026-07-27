@@ -1,6 +1,6 @@
 using NUnit.Framework;
 
-namespace com.github.k_stand.ksanimatorclipboard.editor.tests
+namespace com.github.k_stand.ksanimatorcopyengine.editor.tests
 {
     public class SmokeTests
     {

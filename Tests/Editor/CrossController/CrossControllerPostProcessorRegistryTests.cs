@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using UnityEditor.Animations;
-using com.github.k_stand.ksanimatorclipboard.editor.CrossController;
+using com.github.k_stand.ksanimatorcopyengine.editor.CrossController;
 
-namespace com.github.k_stand.ksanimatorclipboard.editor.tests.CrossController
+namespace com.github.k_stand.ksanimatorcopyengine.editor.tests.CrossController
 {
     public class CrossControllerPostProcessorRegistryTests
     {

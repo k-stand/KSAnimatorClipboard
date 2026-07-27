@@ -1,6 +1,6 @@
 using System;
 
-namespace com.github.k_stand.ksanimatorclipboard.editor.CrossController
+namespace com.github.k_stand.ksanimatorcopyengine.editor.CrossController
 {
     internal interface ICrossControllerPostProcessor
     {

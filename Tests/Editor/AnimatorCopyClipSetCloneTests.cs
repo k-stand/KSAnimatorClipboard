@@ -1,11 +1,11 @@
 using NUnit.Framework;
 using UnityEditor.Animations;
 using UnityEngine;
-using com.github.k_stand.ksanimatorclipboard.editor;
+using com.github.k_stand.ksanimatorcopyengine.editor;
 
-namespace com.github.k_stand.ksanimatorclipboard.editor.tests
+namespace com.github.k_stand.ksanimatorcopyengine.editor.tests
 {
-    public class AnimatorCopyClipSetCloneTests : AnimatorClipboardTestFixtureBase
+    public class AnimatorCopyClipSetCloneTests : AnimatorCopyEngineTestFixtureBase
     {
         [Test]
         public void Clone_ChildState_ProducesIndependentStateAndTransitionAndPopulatesClonedMap()
@@ -13,7 +13,7 @@ namespace com.github.k_stand.ksanimatorclipboard.editor.tests
             AnimatorState state = Create<AnimatorState>();
             AnimatorStateTransition transition = state.AddTransition(state);
             ChildAnimatorState childState = new() { state = state };
-            AnimatorCopyClipSet clipSet = AnimatorClipboard.Copy(childState);
+            AnimatorCopyClipSet clipSet = AnimatorCopyEngine.Copy(childState);
 
             AnimatorCopyClipSet cloneClipSet = clipSet.Clone(out var clonedMap);
 

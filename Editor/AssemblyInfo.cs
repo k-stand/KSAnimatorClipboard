@@ -1,3 +1,3 @@
 using System.Runtime.CompilerServices;
 
-[assembly: InternalsVisibleTo("com.github.k_stand.ksanimatorclipboard.editor.tests")]
+[assembly: InternalsVisibleTo("com.github.k_stand.ksanimatorcopyengine.editor.tests")]

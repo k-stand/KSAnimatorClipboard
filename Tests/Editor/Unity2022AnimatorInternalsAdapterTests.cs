@@ -1,10 +1,10 @@
 using NUnit.Framework;
 using UnityEditor.Animations;
-using com.github.k_stand.ksanimatorclipboard.editor;
+using com.github.k_stand.ksanimatorcopyengine.editor;
 
-namespace com.github.k_stand.ksanimatorclipboard.editor.tests
+namespace com.github.k_stand.ksanimatorcopyengine.editor.tests
 {
-    public class Unity2022AnimatorInternalsAdapterTests : AnimatorClipboardTestFixtureBase
+    public class Unity2022AnimatorInternalsAdapterTests : AnimatorCopyEngineTestFixtureBase
     {
         [Test]
         public void GetAllOverrideStateMotionPairs_ReturnsNull_WhenUninitialized()

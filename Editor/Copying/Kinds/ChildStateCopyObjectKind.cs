@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEditor.Animations;
 
-namespace com.github.k_stand.ksanimatorclipboard.editor.Copying
+namespace com.github.k_stand.ksanimatorcopyengine.editor.Copying
 {
     internal sealed class ChildStateCopyObjectKind : IAnimatorCopyObjectKind
     {

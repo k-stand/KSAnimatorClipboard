@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEditor.Animations;
 
-namespace com.github.k_stand.ksanimatorclipboard.editor
+namespace com.github.k_stand.ksanimatorcopyengine.editor
 {
     /// <summary>
     /// AnimatorControllerの構造をコピー&貼り付け処理が扱いやすい形へ正規化するためのユーティリティです。

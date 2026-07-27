@@ -1,4 +1,4 @@
-# KS Animator Clipboard
+# KS Animator Copy Engine
 アニメーター関連のデータをコピペする機能を提供するライブラリ
 
 ## 概要
@@ -16,31 +16,31 @@ Unity Editor拡張ライブラリです。
 仕組みであり、外部パッケージから拡張することはできません。
 
 NDMFのVirtual Animator API(`nadena.dev.ndmf.animator`)向けの同等機能は
-`com.github.k-stand.ksanimatorclipboard.ndmf`パッケージが提供します。
+`com.github.k-stand.ksanimatorcopyengine.ndmf`パッケージが提供します。
 
 ## インストール
 ### VCC(ALCOM)を利用する方法
 1. https://k-stand.github.io/vpm-repos/ の`Add to VCC`を押してVCCにリポジトリを追加します。
-2. 導入したいプロジェクトに`Animator Clipboard`をインストールしてください。
+2. 導入したいプロジェクトに`KS Animator Copy Engine`をインストールしてください。
 
 ### VPAI unitypackageでVCCにインストールする方法
-1. 以下から任意のバージョンの`com.github.k-stand.ksanimatorclipboard.X.x.x-installer.unitypackage`をダウンロードして、導入したいプロジェクトにインポートしてください。
+1. 以下から任意のバージョンの`com.github.k-stand.ksanimatorcopyengine.X.x.x-installer.unitypackage`をダウンロードして、導入したいプロジェクトにインポートしてください。
 
 0.x.x : [com.github.k-stand.ksanimatorclipboard.0.x.x-installer.unitypackage](https://github.com/k-stand/KSAnimatorClipboard/releases/download/0.2.1/com.github.k-stand.ksanimatorclipboard.0.x.x-installer.unitypackage)
 
 ## 使用方法
 ```csharp
 // Layer単位でコピーして、別のAnimatorControllerへペースト
-AnimatorCopyClipSet clipSet = AnimatorClipboard.Copy(sourceLayer, sourceController);
-AnimatorClipboard.PasteLayers(clipSet, destController);
+AnimatorCopyClipSet clipSet = AnimatorCopyEngine.Copy(sourceLayer, sourceController);
+AnimatorCopyEngine.PasteLayers(clipSet, destController);
 
 // State/Transition/BlendTreeなど任意のオブジェクトをコピーして、Layer内にペースト
-AnimatorCopyClipSet objClipSet = AnimatorClipboard.Copy(sourceState, sourceLayer);
-AnimatorClipboard.PasteIntoLayer(objClipSet, destLayer);
+AnimatorCopyClipSet objClipSet = AnimatorCopyEngine.Copy(sourceState, sourceLayer);
+AnimatorCopyEngine.PasteIntoLayer(objClipSet, destLayer);
 
 // 同じコピー内容を複数回クローンして、それぞれ別のStateMachineへ独立に貼り付ける
 AnimatorCopyClipSet cloned = objClipSet.Clone(out Dictionary<UnityEngine.Object, UnityEngine.Object> clonedMap);
-AnimatorClipboard.PasteIntoStateMachine(cloned, destStateMachine);
+AnimatorCopyEngine.PasteIntoStateMachine(cloned, destStateMachine);
 ```
 
 参照先オブジェクトのクローン方針(`ClonePolicy`)は、対応する`IAnimatorCopyObjectKind`実装の登録内容に従います。

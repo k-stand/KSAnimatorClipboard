@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace com.github.k_stand.ksanimatorclipboard.editor
+namespace com.github.k_stand.ksanimatorcopyengine.editor
 {
     /// <summary>
     /// AnimatorController関連オブジェクト1件分のコピー内容を表すクリップです。

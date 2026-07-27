@@ -2,11 +2,11 @@ using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEditor.Animations;
 using UnityEngine;
-using com.github.k_stand.ksanimatorclipboard.editor;
+using com.github.k_stand.ksanimatorcopyengine.editor;
 
-namespace com.github.k_stand.ksanimatorclipboard.editor.tests
+namespace com.github.k_stand.ksanimatorcopyengine.editor.tests
 {
-    public class ReferenceRemapperTests : AnimatorClipboardTestFixtureBase
+    public class ReferenceRemapperTests : AnimatorCopyEngineTestFixtureBase
     {
         [Test]
         public void RemappingRecursively_UnifiesDuplicateBlendTreeClones_FromIndependentCloneOperations()

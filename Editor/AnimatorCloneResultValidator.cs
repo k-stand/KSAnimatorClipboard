@@ -4,7 +4,7 @@ using System.Linq;
 using UnityEditor.Animations;
 using UnityEngine;
 
-namespace com.github.k_stand.ksanimatorclipboard.editor
+namespace com.github.k_stand.ksanimatorcopyengine.editor
 {
     /// <summary>
     /// クローン結果のAnimatorController関連オブジェクトが、本来クローンされているべき箇所にnull参照を持っていないかを検証します。

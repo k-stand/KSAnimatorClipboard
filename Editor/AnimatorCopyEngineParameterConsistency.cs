@@ -3,12 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEditor.Animations;
 
-namespace com.github.k_stand.ksanimatorclipboard.editor
+namespace com.github.k_stand.ksanimatorcopyengine.editor
 {
     /// <summary>
     /// コピーしたオブジェクトが参照しているAnimatorControllerParameterのうち、貼り付け先のAnimatorControllerに存在しないものを検出します。
     /// </summary>
-    public static class AnimatorClipboardParameterConsistency
+    public static class AnimatorCopyEngineParameterConsistency
     {
         /// <summary>
         /// clipSetが参照しているパラメーター名のうち、destControllerに存在しないものを列挙します。

@@ -2,9 +2,9 @@ using System;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
-using com.github.k_stand.ksanimatorclipboard.editor;
+using com.github.k_stand.ksanimatorcopyengine.editor;
 
-namespace com.github.k_stand.ksanimatorclipboard.editor.tests
+namespace com.github.k_stand.ksanimatorcopyengine.editor.tests
 {
     public class AnimatorInternalsAdapterProviderTests
     {
@@ -19,7 +19,7 @@ namespace com.github.k_stand.ksanimatorclipboard.editor.tests
         [Test]
         public void Resolve_FallsBackToUnity2022Adapter_ForUnknownMajorVersion()
         {
-            LogAssert.Expect(LogType.Warning, "KSAnimatorClipboard: Unity 6000.0.10f1 は動作検証されていません。Unity2022AnimatorInternalsAdapter でのフォールバック動作を試みます。");
+            LogAssert.Expect(LogType.Warning, "KSAnimatorCopyEngine: Unity 6000.0.10f1 は動作検証されていません。Unity2022AnimatorInternalsAdapter でのフォールバック動作を試みます。");
 
             IAnimatorInternalsAdapter adapter = AnimatorInternalsAdapterProvider.Resolve("6000.0.10f1");
 

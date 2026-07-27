@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEditor.Animations;
 using UnityEngine;
 
-namespace com.github.k_stand.ksanimatorclipboard.editor
+namespace com.github.k_stand.ksanimatorcopyengine.editor
 {
     // AnimatorController関連オブジェクトグラフの「形」(どのノードがどの子を持つか)を1箇所に集約する。
     // AnimatorCloner.ValidateRegistration*とAnimatorCloneResultValidator.Validate*CloneResultが

@@ -4,16 +4,16 @@ using System.Linq;
 using UnityEditor;
 using UnityEditor.Animations;
 using UnityEngine;
-using com.github.k_stand.ksanimatorclipboard.editor.Copying;
-using com.github.k_stand.ksanimatorclipboard.editor.CrossController;
+using com.github.k_stand.ksanimatorcopyengine.editor.Copying;
+using com.github.k_stand.ksanimatorcopyengine.editor.CrossController;
 
-namespace com.github.k_stand.ksanimatorclipboard.editor
+namespace com.github.k_stand.ksanimatorcopyengine.editor
 {
     /// <summary>
     /// AnimatorController関連オブジェクトのコピー・貼り付け機能を提供する、このパッケージの主な入口となる静的クラスです。
     /// 各操作にはTry接頭辞を持つ失敗許容版と、失敗時に例外を送出する版が対になって用意されています。
     /// </summary>
-    public static class AnimatorClipboard
+    public static class AnimatorCopyEngine
     {
         /// <summary>
         /// 単一のAnimatorControllerLayerをコピーします。

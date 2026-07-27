@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace com.github.k_stand.ksanimatorclipboard.editor.CrossController
+namespace com.github.k_stand.ksanimatorcopyengine.editor.CrossController
 {
     internal sealed class CrossControllerPostProcessorRegistry
     {

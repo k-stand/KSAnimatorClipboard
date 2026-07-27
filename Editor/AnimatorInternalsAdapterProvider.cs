@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
-namespace com.github.k_stand.ksanimatorclipboard.editor
+namespace com.github.k_stand.ksanimatorcopyengine.editor
 {
     internal static class AnimatorInternalsAdapterProvider
     {
@@ -35,7 +35,7 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
             {
                 // 一致するアダプターがなくても、直近の既知アダプターへベストエフォートでフォールバックする
                 adapter = KnownAdapters[^1].Factory();
-                Debug.LogWarning($"KSAnimatorClipboard: Unity {unityVersionString} は動作検証されていません。{adapter.GetType().Name} でのフォールバック動作を試みます。");
+                Debug.LogWarning($"KSAnimatorCopyEngine: Unity {unityVersionString} は動作検証されていません。{adapter.GetType().Name} でのフォールバック動作を試みます。");
             }
 
             ValidateOrThrow(adapter, unityVersionString);
@@ -53,7 +53,7 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
             catch (Exception e)
             {
                 throw new InvalidOperationException(
-                    $"KSAnimatorClipboard: Unity {unityVersionString} では内部API({adapter.GetType().Name})の解決に失敗しました。" +
+                    $"KSAnimatorCopyEngine: Unity {unityVersionString} では内部API({adapter.GetType().Name})の解決に失敗しました。" +
                     "Unityのバージョンアップにより内部実装が変更された可能性があります。", e);
             }
         }

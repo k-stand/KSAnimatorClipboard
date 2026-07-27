@@ -1,10 +1,10 @@
 using NUnit.Framework;
 using UnityEngine;
-using com.github.k_stand.ksanimatorclipboard.editor;
+using com.github.k_stand.ksanimatorcopyengine.editor;
 
-namespace com.github.k_stand.ksanimatorclipboard.editor.tests
+namespace com.github.k_stand.ksanimatorcopyengine.editor.tests
 {
-    public class AnimatorClipboardBehaviourCopyTests
+    public class AnimatorCopyEngineBehaviourCopyTests
     {
         [Test]
         public void Copy_StateMachineBehaviour_ResolvesToBehaviours()
@@ -12,7 +12,7 @@ namespace com.github.k_stand.ksanimatorclipboard.editor.tests
             DummyStateMachineBehaviour behaviour = ScriptableObject.CreateInstance<DummyStateMachineBehaviour>();
             try
             {
-                AnimatorCopyClipSet clipSet = AnimatorClipboard.Copy(behaviour);
+                AnimatorCopyClipSet clipSet = AnimatorCopyEngine.Copy(behaviour);
                 Assert.AreEqual(AnimatorCopyClipSet.AnimatorCopyClipSetType.Behaviours, clipSet.Type);
             }
             finally
@@ -28,7 +28,7 @@ namespace com.github.k_stand.ksanimatorclipboard.editor.tests
             DummyStateMachineBehaviour behaviour2 = ScriptableObject.CreateInstance<DummyStateMachineBehaviour>();
             try
             {
-                AnimatorCopyClipSet clipSet = AnimatorClipboard.Copy(new[] { behaviour1, behaviour2 });
+                AnimatorCopyClipSet clipSet = AnimatorCopyEngine.Copy(new[] { behaviour1, behaviour2 });
                 Assert.AreEqual(AnimatorCopyClipSet.AnimatorCopyClipSetType.Behaviours, clipSet.Type);
             }
             finally

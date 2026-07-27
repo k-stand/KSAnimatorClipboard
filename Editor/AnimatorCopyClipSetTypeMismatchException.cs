@@ -1,6 +1,6 @@
 using System;
 
-namespace com.github.k_stand.ksanimatorclipboard.editor
+namespace com.github.k_stand.ksanimatorcopyengine.editor
 {
     /// <summary>
     /// AnimatorCopyClipSetの実際のTypeが要求された型と一致しない場合に、Try接頭辞を持たないPaste系メソッドから送出される例外です。

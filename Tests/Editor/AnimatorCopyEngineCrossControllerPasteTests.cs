@@ -1,10 +1,10 @@
 using NUnit.Framework;
 using UnityEditor.Animations;
-using com.github.k_stand.ksanimatorclipboard.editor;
+using com.github.k_stand.ksanimatorcopyengine.editor;
 
-namespace com.github.k_stand.ksanimatorclipboard.editor.tests
+namespace com.github.k_stand.ksanimatorcopyengine.editor.tests
 {
-    public class AnimatorClipboardCrossControllerPasteTests : AnimatorClipboardTestFixtureBase
+    public class AnimatorCopyEngineCrossControllerPasteTests : AnimatorCopyEngineTestFixtureBase
     {
         [Test]
         public void PasteLayers_ResetsSyncedLayerIndex_WhenPastingAcrossControllers()
@@ -16,12 +16,12 @@ namespace com.github.k_stand.ksanimatorclipboard.editor.tests
             AnimatorControllerLayer sourceLayer = new() { name = "SourceLayer", stateMachine = sourceStateMachine, syncedLayerIndex = 0 };
             sourceController.layers = new[] { baseLayer, sourceLayer };
 
-            AnimatorCopyClipSet clipSet = AnimatorClipboard.Copy(sourceLayer, sourceController);
+            AnimatorCopyClipSet clipSet = AnimatorCopyEngine.Copy(sourceLayer, sourceController);
 
             AnimatorController destController = Create<AnimatorController>();
             destController.layers = System.Array.Empty<AnimatorControllerLayer>();
 
-            AnimatorControllerLayer[] pastedLayers = AnimatorClipboard.PasteLayers(clipSet, destController);
+            AnimatorControllerLayer[] pastedLayers = AnimatorCopyEngine.PasteLayers(clipSet, destController);
 
             Assert.AreEqual(-1, pastedLayers[0].syncedLayerIndex);
         }
@@ -36,9 +36,9 @@ namespace com.github.k_stand.ksanimatorclipboard.editor.tests
             AnimatorControllerLayer sourceLayer = new() { name = "SourceLayer", stateMachine = sourceStateMachine, syncedLayerIndex = 0 };
             controller.layers = new[] { otherLayer, sourceLayer };
 
-            AnimatorCopyClipSet clipSet = AnimatorClipboard.Copy(sourceLayer, controller);
+            AnimatorCopyClipSet clipSet = AnimatorCopyEngine.Copy(sourceLayer, controller);
 
-            AnimatorControllerLayer[] pastedLayers = AnimatorClipboard.PasteLayers(clipSet, controller);
+            AnimatorControllerLayer[] pastedLayers = AnimatorCopyEngine.PasteLayers(clipSet, controller);
 
             Assert.AreEqual(0, pastedLayers[0].syncedLayerIndex);
         }
