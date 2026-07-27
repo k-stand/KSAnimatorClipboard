@@ -26,7 +26,7 @@ NDMFのVirtual Animator API(`nadena.dev.ndmf.animator`)向けの同等機能は
 ### VPAI unitypackageでVCCにインストールする方法
 1. 以下から任意のバージョンの`com.github.k-stand.ksanimatorcopyengine.X.x.x-installer.unitypackage`をダウンロードして、導入したいプロジェクトにインポートしてください。
 
-0.x.x : [com.github.k-stand.ksanimatorclipboard.0.x.x-installer.unitypackage](https://github.com/k-stand/KSAnimatorClipboard/releases/download/0.2.1/com.github.k-stand.ksanimatorclipboard.0.x.x-installer.unitypackage)
+0.x.x : [com.github.k-stand.ksanimatorclipboard.0.x.x-installer.unitypackage](https://github.com/k-stand/KSAnimatorClipboard/releases/download/0.2.1/com.github.k-stand.ksanimatorclipboard.0.x.x-installer.unitypackage)(0.6.0以前は旧パッケージ名`com.github.k-stand.ksanimatorclipboard`で配布されていました)
 
 ## 使用方法
 ```csharp
