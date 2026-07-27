@@ -52,6 +52,11 @@ AnimatorCopyEngine.PasteIntoStateMachine(cloned, destStateMachine);
 [MIT License](https://github.com/k-stand/KSAnimatorClipboard/blob/main/LICENSE.txt)
 
 ## 更新履歴
+### [2026-07-28] 0.7.0
+- パッケージを`com.github.k-stand.ksanimatorclipboard`から`com.github.k-stand.ksanimatorcopyengine`へ改名(破壊的変更)。「Clipboard」という語がUI操作可能なクリップボードを連想させ、ヘッドレスなAPIライブラリという実態と乖離していたための改名です
+- エントリーポイントクラス`AnimatorClipboard`を`AnimatorCopyEngine`に、`AnimatorClipboardParameterConsistency`を`AnimatorCopyEngineParameterConsistency`にリネーム(破壊的変更)
+- namespace・asmdef名を`com.github.k_stand.ksanimatorclipboard.*`から`com.github.k_stand.ksanimatorcopyengine.*`に変更(破壊的変更)
+
 ### [2026-07-26] 0.6.0  
 - VRChatAvatars SDK固有の型への対応窓口だった`IParameterReferenceResolver`/`ParameterReferenceResolverRegistry`を削除(破壊的変更)。StateMachineBehaviourが参照するパラメーターは整合性チェックの検出対象外になりました
 - README.mdからVRChatAvatars関連の記述を削除(本パッケージはVRChatAvatarsと無関係な汎用ライブラリのため)
