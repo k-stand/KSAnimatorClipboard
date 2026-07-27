@@ -992,11 +992,11 @@ namespace com.github.k_stand.ksanimatorcopyengine.editor
             {
                 // 手動でポリシーが設定されていればそれを使用
                 ClonePolicy.Clone or ClonePolicy.KeepReference or ClonePolicy.Detach => policy,
-                ClonePolicy.UnSetting => DefaultPolicy switch
+                ClonePolicy.UnSetting or _ => DefaultPolicy switch
                 {
                     // デフォルトポリシーが KeepReference 未満なら KeepReferenceに昇格
                     ClonePolicy.Clone or ClonePolicy.KeepReference => DefaultPolicy,
-                    ClonePolicy.Detach or ClonePolicy.UnSetting => ClonePolicy.KeepReference
+                    ClonePolicy.Detach or ClonePolicy.UnSetting or _ => ClonePolicy.KeepReference
                 }
             };
 
