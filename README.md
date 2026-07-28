@@ -11,9 +11,7 @@ Unity Editor拡張ライブラリです。
 
 クローン時、参照先オブジェクトをどう扱うか(複製する/参照を維持する/切り離してnullにする/未設定として例外を出す)は
 `AnimatorCloner.ClonePolicy`(`Clone`/`KeepReference`/`Detach`/`UnSetting`)として、オブジェクトの種別(Kind)ごとに
-登録します。標準で用意されていない型への対応や、クローン結果検証への参加は、内部的にはKindレジストリやプラグイン機構
-(`IStateMachineBehaviourCloneResultValidator`など)によって実現されていますが、これらは本パッケージ内部限定の
-仕組みであり、外部パッケージから拡張することはできません。
+登録します。
 
 NDMFのVirtual Animator API(`nadena.dev.ndmf.animator`)向けの同等機能は
 `com.github.k-stand.ksanimatorcopyengine.ndmf`パッケージが提供します。
@@ -26,7 +24,7 @@ NDMFのVirtual Animator API(`nadena.dev.ndmf.animator`)向けの同等機能は
 ### VPAI unitypackageでVCCにインストールする方法
 1. 以下から任意のバージョンの`com.github.k-stand.ksanimatorcopyengine.X.x.x-installer.unitypackage`をダウンロードして、導入したいプロジェクトにインポートしてください。
 
-0.x.x : [com.github.k-stand.ksanimatorcopyengine.0.x.x-installer.unitypackage](https://github.com/k-stand/KSAnimatorCopyEngine/releases/download/0.7.0/com.github.k-stand.ksanimatorcopyengine.0.x.x-installer.unitypackage)
+0.x.x : [com.github.k-stand.ksanimatorcopyengine.0.x.x-installer.unitypackage](https://github.com/k-stand/KSAnimatorCopyEngine/releases/download/0.7.1/com.github.k-stand.ksanimatorcopyengine.0.x.x-installer.unitypackage)
 
 ~~0.x.x : [com.github.k-stand.ksanimatorclipboard.0.x.x-installer.unitypackage](https://github.com/k-stand/KSAnimatorClipboard/releases/download/0.2.1/com.github.k-stand.ksanimatorclipboard.0.x.x-installer.unitypackage)~~(0.6.0以前は旧パッケージ名`com.github.k-stand.ksanimatorclipboard`で配布されていました)
 
@@ -43,10 +41,25 @@ AnimatorCopyEngine.PasteIntoLayer(objClipSet, destLayer);
 // 同じコピー内容を複数回クローンして、それぞれ別のStateMachineへ独立に貼り付ける
 AnimatorCopyClipSet cloned = objClipSet.Clone(out Dictionary<UnityEngine.Object, UnityEngine.Object> clonedMap);
 AnimatorCopyEngine.PasteIntoStateMachine(cloned, destStateMachine);
+
+// State/Transitionなど種類の異なるオブジェクトを混在させてまとめてコピーすることもできる
+AnimatorCopyClipSet mixedClipSet = AnimatorCopyEngine.Copy(
+    new object[] { sourceState, sourceTransition }, sourceLayer);
 ```
 
-参照先オブジェクトのクローン方針(`ClonePolicy`)は、対応する`IAnimatorCopyObjectKind`実装の登録内容に従います。
-未登録の型をクローンしようとした場合、`AnimatorCloner.ValidateRegistrations()`で事前に検出できます。
+参照先オブジェクトのクローン方針(`ClonePolicy`)は、対応する`IAnimatorCopyObjectKind`実装の登録内容に従いますが、
+`AnimatorCopyClipSet.Clone(AnimatorCloner)`を使うと、オブジェクトごとにClonePolicyを個別指定できます。
+
+```csharp
+// ClonePolicyを個別に指定したい場合は、AnimatorClonerを明示的に生成し、
+// 対象オブジェクトごとにSetClonePolicy/SetRangeClonePolicyで方針を設定してから、
+// Clone(cloner)経由でクローンする
+AnimatorCloner cloner = new() { DefaultPolicy = AnimatorCloner.ClonePolicy.KeepReference };
+cloner.SetClonePolicy(sourceBlendTree, AnimatorCloner.ClonePolicy.Clone);
+AnimatorCopyClipSet customCloned = objClipSet.Clone(cloner);
+```
+
+未登録の型をクローンしようとした場合、`(new AnimatorCloner()).ValidateRegistrations(targets)`で事前に検出できます。
 
 失敗しても例外を発生させたくない場合は、`Copy`/`PasteLayers`/`PasteIntoLayer`などに対応する`TryCopy`/`TryPasteLayers`/`TryPasteIntoLayer`(戻り値`bool`、結果は`out`引数)を使用してください。
 
@@ -54,6 +67,10 @@ AnimatorCopyEngine.PasteIntoStateMachine(cloned, destStateMachine);
 [MIT License](https://github.com/k-stand/KSAnimatorCopyEngine/blob/main/LICENSE.txt)
 
 ## 更新履歴
+### [2026-07-28] 0.7.1
+- READMEの概要から、ClonePolicyの説明に付随していた拡張性(内部限定のKindレジストリ・プラグイン機構)に関する記述を整理し、ClonePolicyの概要説明のみに整理しました
+- 使用方法にClonePolicyの個別指定(`AnimatorCloner`を明示的に使う方法)と、種類の異なるオブジェクトを混在させたコピーの例を追加
+
 ### [2026-07-28] 0.7.0
 - パッケージを`com.github.k-stand.ksanimatorclipboard`から`com.github.k-stand.ksanimatorcopyengine`へ改名(破壊的変更)。「Clipboard」という語がUI操作可能なクリップボードを連想させ、ヘッドレスなAPIライブラリという実態と乖離していたための改名です
 - エントリーポイントクラス`AnimatorClipboard`を`AnimatorCopyEngine`に、`AnimatorClipboardParameterConsistency`を`AnimatorCopyEngineParameterConsistency`にリネーム(破壊的変更)

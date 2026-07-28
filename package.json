@@ -1,7 +1,7 @@
 {
     "name": "com.github.k-stand.ksanimatorcopyengine",
     "displayName": "KS Animator Copy Engine",
-    "version": "0.7.0",
+    "version": "0.7.1",
     "unity": "2022.3",
     "description": "アニメーター関連のデータをコピペする機能を提供するライブラリ",
     "author": {
