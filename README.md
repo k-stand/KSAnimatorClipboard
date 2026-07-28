@@ -26,7 +26,9 @@ NDMFのVirtual Animator API(`nadena.dev.ndmf.animator`)向けの同等機能は
 ### VPAI unitypackageでVCCにインストールする方法
 1. 以下から任意のバージョンの`com.github.k-stand.ksanimatorcopyengine.X.x.x-installer.unitypackage`をダウンロードして、導入したいプロジェクトにインポートしてください。
 
-0.x.x : [com.github.k-stand.ksanimatorclipboard.0.x.x-installer.unitypackage](https://github.com/k-stand/KSAnimatorClipboard/releases/download/0.2.1/com.github.k-stand.ksanimatorclipboard.0.x.x-installer.unitypackage)(0.6.0以前は旧パッケージ名`com.github.k-stand.ksanimatorclipboard`で配布されていました)
+0.x.x : [com.github.k-stand.ksanimatorcopyengine.0.x.x-installer.unitypackage](https://github.com/k-stand/KSAnimatorCopyEngine/releases/download/0.7.0/com.github.k-stand.ksanimatorcopyengine.0.x.x-installer.unitypackage)
+
+~~0.x.x : [com.github.k-stand.ksanimatorclipboard.0.x.x-installer.unitypackage](https://github.com/k-stand/KSAnimatorClipboard/releases/download/0.2.1/com.github.k-stand.ksanimatorclipboard.0.x.x-installer.unitypackage)~~(0.6.0以前は旧パッケージ名`com.github.k-stand.ksanimatorclipboard`で配布されていました)
 
 ## 使用方法
 ```csharp
@@ -63,6 +65,7 @@ AnimatorCopyEngine.PasteIntoStateMachine(cloned, destStateMachine);
 
 ### [2026-07-24] 0.5.1  
 - README.mdを修正
+
 ### [2026-07-24] 0.5.0  
 - コピー対象種別ごとの判定ロジックをKindレジストリ方式に再設計(内部実装、破壊的変更を含む)
 - AnimatorClipboard.Copy(Behaviour)をCopy(StateMachineBehaviour)に修正(型の誤りを修正、破壊的変更)

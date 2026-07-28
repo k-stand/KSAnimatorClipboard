@@ -6,7 +6,7 @@
     "description": "アニメーター関連のデータをコピペする機能を提供するライブラリ",
     "author": {
         "name": "k-stand",
-        "url": "https://github.com/k-stand/KSAnimatorClipboard"
+        "url": "https://github.com/k-stand/KSAnimatorCopyEngine"
     },
     "license": "MIT",
     "repo": "https://k-stand.github.io/vpm-repos/index.json",
