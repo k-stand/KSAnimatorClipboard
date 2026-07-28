@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEditor.Animations;
 
-namespace com.github.k_stand.ksanimatorclipboard.editor.Copying
+namespace com.github.k_stand.ksanimatorcopyengine.editor.Copying
 {
     internal sealed class AnimatorCopyObjectKindRegistry
     {

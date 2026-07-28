@@ -2,20 +2,17 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor.Animations;
-using UnityEngine;
-using com.github.k_stand.ksanimatorclipboard.editor.CrossController;
 
-namespace com.github.k_stand.ksanimatorclipboard.editor
+namespace com.github.k_stand.ksanimatorcopyengine.editor
 {
     /// <summary>
     /// コピーしたオブジェクトが参照しているAnimatorControllerParameterのうち、貼り付け先のAnimatorControllerに存在しないものを検出します。
     /// </summary>
-    public static class AnimatorClipboardParameterConsistency
+    public static class AnimatorCopyEngineParameterConsistency
     {
         /// <summary>
         /// clipSetが参照しているパラメーター名のうち、destControllerに存在しないものを列挙します。
-        /// StateMachineBehaviourが参照するパラメーターは、ParameterReferenceResolverRegistryに登録されたresolverを経由して収集されます
-        /// (未登録の型は参照なしとして扱われます)。
+        /// StateMachineBehaviourが参照するパラメーターは検出対象に含まれません(条件式(AnimatorCondition)由来の参照のみを収集します)。
         /// </summary>
         /// <param name="clipSet">検証対象のAnimatorCopyClipSet。</param>
         /// <param name="destController">存在確認の基準にする貼り付け先のAnimatorController。</param>
@@ -54,9 +51,6 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
                     break;
                 case AnimatorTransition transition:
                     CollectFromConditions(transition.conditions, result);
-                    break;
-                case StateMachineBehaviour behaviour:
-                    CollectFromBehaviour(behaviour, result);
                     break;
             }
         }
@@ -109,11 +103,6 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
             {
                 CollectFromConditions(transition.conditions, result);
             }
-
-            foreach (StateMachineBehaviour behaviour in state.behaviours)
-            {
-                CollectFromBehaviour(behaviour, result);
-            }
         }
 
         private static void CollectFromConditions(AnimatorCondition[] conditions, HashSet<string> result)
@@ -121,19 +110,6 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
             foreach (AnimatorCondition condition in conditions)
             {
                 result.Add(condition.parameter);
-            }
-        }
-
-        private static void CollectFromBehaviour(StateMachineBehaviour behaviour, HashSet<string> result)
-        {
-            if (behaviour == null) return;
-
-            IParameterReferenceResolver resolver = ParameterReferenceResolverRegistry.Shared.Resolve(behaviour.GetType());
-            if (resolver == null) return;
-
-            foreach (string parameterName in resolver.GetReferencedParameterNames(behaviour))
-            {
-                result.Add(parameterName);
             }
         }
     }

@@ -2,11 +2,11 @@ using NUnit.Framework;
 using UnityEditor;
 using UnityEditor.Animations;
 using UnityEngine;
-using com.github.k_stand.ksanimatorclipboard.editor;
+using com.github.k_stand.ksanimatorcopyengine.editor;
 
-namespace com.github.k_stand.ksanimatorclipboard.editor.tests
+namespace com.github.k_stand.ksanimatorcopyengine.editor.tests
 {
-    public class AnimatorClipboardPasteGuardTests : AnimatorClipboardTestFixtureBase
+    public class AnimatorCopyEnginePasteGuardTests : AnimatorCopyEngineTestFixtureBase
     {
         private const string TempControllerPath = "Assets/_TempPasteGuardTest.controller";
 
@@ -46,11 +46,11 @@ namespace com.github.k_stand.ksanimatorclipboard.editor.tests
         {
             AnimatorState state = Create<AnimatorState>();
             ChildAnimatorState childState = new() { state = state };
-            AnimatorCopyClipSet clipSet = AnimatorClipboard.Copy(childState);
+            AnimatorCopyClipSet clipSet = AnimatorCopyEngine.Copy(childState);
 
             AnimatorStateMachine destStateMachine = CreateAssetBackedDestStateMachine();
 
-            Assert.DoesNotThrow(() => AnimatorClipboard.PasteIntoStateMachine(clipSet, destStateMachine));
+            Assert.DoesNotThrow(() => AnimatorCopyEngine.PasteIntoStateMachine(clipSet, destStateMachine));
         }
 
         [Test]
@@ -59,11 +59,11 @@ namespace com.github.k_stand.ksanimatorclipboard.editor.tests
             AnimatorState state = Create<AnimatorState>();
             ChildAnimatorState childState = new() { state = state };
             AnimatorTransition transition = Create<AnimatorTransition>();
-            AnimatorCopyClipSet clipSet = AnimatorClipboard.Copy(new object[] { childState, transition });
+            AnimatorCopyClipSet clipSet = AnimatorCopyEngine.Copy(new object[] { childState, transition });
 
             AnimatorStateMachine destStateMachine = CreateAssetBackedDestStateMachine();
 
-            Assert.DoesNotThrow(() => AnimatorClipboard.PasteIntoStateMachine(clipSet, destStateMachine));
+            Assert.DoesNotThrow(() => AnimatorCopyEngine.PasteIntoStateMachine(clipSet, destStateMachine));
         }
 
         [Test]
@@ -72,22 +72,22 @@ namespace com.github.k_stand.ksanimatorclipboard.editor.tests
             AnimatorController controller = Create<AnimatorController>();
             AnimatorStateMachine sourceStateMachine = Create<AnimatorStateMachine>();
             AnimatorControllerLayer layer = new() { name = "Layer1", stateMachine = sourceStateMachine };
-            AnimatorCopyClipSet clipSet = AnimatorClipboard.Copy(layer, controller);
+            AnimatorCopyClipSet clipSet = AnimatorCopyEngine.Copy(layer, controller);
 
             AnimatorStateMachine destStateMachine = CreateAssetBackedDestStateMachine();
 
-            Assert.Throws<AnimatorCopyClipSetTypeMismatchException>(() => AnimatorClipboard.PasteIntoStateMachine(clipSet, destStateMachine));
+            Assert.Throws<AnimatorCopyClipSetTypeMismatchException>(() => AnimatorCopyEngine.PasteIntoStateMachine(clipSet, destStateMachine));
         }
 
         [Test]
         public void PasteIntoStateMachine_RejectsBehaviours()
         {
             DummyStateMachineBehaviour behaviour = Track(ScriptableObject.CreateInstance<DummyStateMachineBehaviour>());
-            AnimatorCopyClipSet clipSet = AnimatorClipboard.Copy(behaviour);
+            AnimatorCopyClipSet clipSet = AnimatorCopyEngine.Copy(behaviour);
 
             AnimatorStateMachine destStateMachine = CreateAssetBackedDestStateMachine();
 
-            Assert.Throws<AnimatorCopyClipSetTypeMismatchException>(() => AnimatorClipboard.PasteIntoStateMachine(clipSet, destStateMachine));
+            Assert.Throws<AnimatorCopyClipSetTypeMismatchException>(() => AnimatorCopyEngine.PasteIntoStateMachine(clipSet, destStateMachine));
         }
     }
 }

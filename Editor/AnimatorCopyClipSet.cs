@@ -5,12 +5,12 @@ using System.Linq;
 using UnityEditor;
 using UnityEditor.Animations;
 using UnityEngine;
-using com.github.k_stand.ksanimatorclipboard.editor.Copying;
+using com.github.k_stand.ksanimatorcopyengine.editor.Copying;
 
-namespace com.github.k_stand.ksanimatorclipboard.editor
+namespace com.github.k_stand.ksanimatorcopyengine.editor
 {
     /// <summary>
-    /// AnimatorClipboard.Copy系メソッドの戻り値として、コピーされたAnimatorController関連オブジェクトの集合を保持します。
+    /// AnimatorCopyEngine.Copy系メソッドの戻り値として、コピーされたAnimatorController関連オブジェクトの集合を保持します。
     /// </summary>
     public class AnimatorCopyClipSet
     {
@@ -57,7 +57,7 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
         {
             ClipSetInit(layers);
             // Type不一致の場合、AncestorSetting/ContextsSettingを行わず未初期化のまま返す。
-            // 妥当性はAnimatorClipboard.TryCopyが呼び出し後にTypeを見て判定する前提であり、
+            // 妥当性はAnimatorCopyEngine.TryCopyが呼び出し後にTypeを見て判定する前提であり、
             // このコンストラクタを直接使う場合はTypeを確認してから使うこと。
             if (Type != AnimatorCopyClipSetType.Layers) return;
 
@@ -75,7 +75,7 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
         {
             ClipSetInit(objs);
             // Type不一致の場合、AncestorSetting/ContextsSettingを行わず未初期化のまま返す。
-            // 妥当性はAnimatorClipboard.TryCopyが呼び出し後にTypeを見て判定する前提であり、
+            // 妥当性はAnimatorCopyEngine.TryCopyが呼び出し後にTypeを見て判定する前提であり、
             // このコンストラクタを直接使う場合はTypeを確認してから使うこと。
             if (!Type.IsInStateMachineCategory()) return;
 
@@ -89,7 +89,7 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
         {
             ClipSetInit(behaviours);
             // Type不一致の場合、ContextsSettingを行わず未初期化のまま返す。
-            // 妥当性はAnimatorClipboard.TryCopyが呼び出し後にTypeを見て判定する前提であり、
+            // 妥当性はAnimatorCopyEngine.TryCopyが呼び出し後にTypeを見て判定する前提であり、
             // このコンストラクタを直接使う場合はTypeを確認してから使うこと。
             if (Type != AnimatorCopyClipSetType.Behaviours) return;
 

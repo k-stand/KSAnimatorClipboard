@@ -1,7 +1,7 @@
 using UnityEditor.Animations;
 using UnityEngine;
 
-namespace com.github.k_stand.ksanimatorclipboard.editor
+namespace com.github.k_stand.ksanimatorcopyengine.editor
 {
     internal interface IAnimatorInternalsAdapter
     {

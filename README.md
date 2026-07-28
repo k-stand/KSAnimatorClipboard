@@ -1,4 +1,4 @@
-# KS Animator Clipboard
+# KS Animator Copy Engine
 アニメーター関連のデータをコピペする機能を提供するライブラリ
 
 ## 概要
@@ -11,39 +11,38 @@ Unity Editor拡張ライブラリです。
 
 クローン時、参照先オブジェクトをどう扱うか(複製する/参照を維持する/切り離してnullにする/未設定として例外を出す)は
 `AnimatorCloner.ClonePolicy`(`Clone`/`KeepReference`/`Detach`/`UnSetting`)として、オブジェクトの種別(Kind)ごとに
-登録します。標準で用意されていない型への対応や、パラメーター整合性チェック・クローン結果検証への参加も、
-Kindレジストリやプラグイン機構(`IParameterReferenceResolver`、`IStateMachineBehaviourCloneResultValidator`など)を
-通じて拡張できます。
-
-VRChat Avatars SDK固有の型(`VRCAvatarParameterDriver`など)への対応は、本パッケージではなく
-[KS Animator Clipboard (VRChat Avatars)](https://github.com/k-stand/KSAnimatorClipboard.VRChatAvatars)が提供します。
+登録します。標準で用意されていない型への対応や、クローン結果検証への参加は、内部的にはKindレジストリやプラグイン機構
+(`IStateMachineBehaviourCloneResultValidator`など)によって実現されていますが、これらは本パッケージ内部限定の
+仕組みであり、外部パッケージから拡張することはできません。
 
 NDMFのVirtual Animator API(`nadena.dev.ndmf.animator`)向けの同等機能は
-`com.github.k-stand.ksanimatorclipboard.ndmf`パッケージが提供します。
+`com.github.k-stand.ksanimatorcopyengine.ndmf`パッケージが提供します。
 
 ## インストール
 ### VCC(ALCOM)を利用する方法
 1. https://k-stand.github.io/vpm-repos/ の`Add to VCC`を押してVCCにリポジトリを追加します。
-2. 導入したいプロジェクトに`Animator Clipboard`をインストールしてください。
+2. 導入したいプロジェクトに`KS Animator Copy Engine`をインストールしてください。
 
 ### VPAI unitypackageでVCCにインストールする方法
-1. 以下から任意のバージョンの`com.github.k-stand.ksanimatorclipboard.X.x.x-installer.unitypackage`をダウンロードして、導入したいプロジェクトにインポートしてください。
+1. 以下から任意のバージョンの`com.github.k-stand.ksanimatorcopyengine.X.x.x-installer.unitypackage`をダウンロードして、導入したいプロジェクトにインポートしてください。
 
-0.x.x : [com.github.k-stand.ksanimatorclipboard.0.x.x-installer.unitypackage](https://github.com/k-stand/KSAnimatorClipboard/releases/download/0.2.1/com.github.k-stand.ksanimatorclipboard.0.x.x-installer.unitypackage)
+0.x.x : [com.github.k-stand.ksanimatorcopyengine.0.x.x-installer.unitypackage](https://github.com/k-stand/KSAnimatorCopyEngine/releases/download/0.7.0/com.github.k-stand.ksanimatorcopyengine.0.x.x-installer.unitypackage)
+
+~~0.x.x : [com.github.k-stand.ksanimatorclipboard.0.x.x-installer.unitypackage](https://github.com/k-stand/KSAnimatorClipboard/releases/download/0.2.1/com.github.k-stand.ksanimatorclipboard.0.x.x-installer.unitypackage)~~(0.6.0以前は旧パッケージ名`com.github.k-stand.ksanimatorclipboard`で配布されていました)
 
 ## 使用方法
 ```csharp
 // Layer単位でコピーして、別のAnimatorControllerへペースト
-AnimatorCopyClipSet clipSet = AnimatorClipboard.Copy(sourceLayer, sourceController);
-AnimatorClipboard.PasteLayers(clipSet, destController);
+AnimatorCopyClipSet clipSet = AnimatorCopyEngine.Copy(sourceLayer, sourceController);
+AnimatorCopyEngine.PasteLayers(clipSet, destController);
 
 // State/Transition/BlendTreeなど任意のオブジェクトをコピーして、Layer内にペースト
-AnimatorCopyClipSet objClipSet = AnimatorClipboard.Copy(sourceState, sourceLayer);
-AnimatorClipboard.PasteIntoLayer(objClipSet, destLayer);
+AnimatorCopyClipSet objClipSet = AnimatorCopyEngine.Copy(sourceState, sourceLayer);
+AnimatorCopyEngine.PasteIntoLayer(objClipSet, destLayer);
 
 // 同じコピー内容を複数回クローンして、それぞれ別のStateMachineへ独立に貼り付ける
 AnimatorCopyClipSet cloned = objClipSet.Clone(out Dictionary<UnityEngine.Object, UnityEngine.Object> clonedMap);
-AnimatorClipboard.PasteIntoStateMachine(cloned, destStateMachine);
+AnimatorCopyEngine.PasteIntoStateMachine(cloned, destStateMachine);
 ```
 
 参照先オブジェクトのクローン方針(`ClonePolicy`)は、対応する`IAnimatorCopyObjectKind`実装の登録内容に従います。
@@ -55,8 +54,18 @@ AnimatorClipboard.PasteIntoStateMachine(cloned, destStateMachine);
 [MIT License](https://github.com/k-stand/KSAnimatorClipboard/blob/main/LICENSE.txt)
 
 ## 更新履歴
+### [2026-07-28] 0.7.0
+- パッケージを`com.github.k-stand.ksanimatorclipboard`から`com.github.k-stand.ksanimatorcopyengine`へ改名(破壊的変更)。「Clipboard」という語がUI操作可能なクリップボードを連想させ、ヘッドレスなAPIライブラリという実態と乖離していたための改名です
+- エントリーポイントクラス`AnimatorClipboard`を`AnimatorCopyEngine`に、`AnimatorClipboardParameterConsistency`を`AnimatorCopyEngineParameterConsistency`にリネーム(破壊的変更)
+- namespace・asmdef名を`com.github.k_stand.ksanimatorclipboard.*`から`com.github.k_stand.ksanimatorcopyengine.*`に変更(破壊的変更)
+
+### [2026-07-26] 0.6.0  
+- VRChatAvatars SDK固有の型への対応窓口だった`IParameterReferenceResolver`/`ParameterReferenceResolverRegistry`を削除(破壊的変更)。StateMachineBehaviourが参照するパラメーターは整合性チェックの検出対象外になりました
+- README.mdからVRChatAvatars関連の記述を削除(本パッケージはVRChatAvatarsと無関係な汎用ライブラリのため)
+
 ### [2026-07-24] 0.5.1  
 - README.mdを修正
+
 ### [2026-07-24] 0.5.0  
 - コピー対象種別ごとの判定ロジックをKindレジストリ方式に再設計(内部実装、破壊的変更を含む)
 - AnimatorClipboard.Copy(Behaviour)をCopy(StateMachineBehaviour)に修正(型の誤りを修正、破壊的変更)

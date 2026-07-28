@@ -1,8 +1,8 @@
 {
-    "name": "com.github.k_stand.ksanimatorclipboard.editor.tests",
+    "name": "com.github.k_stand.ksanimatorcopyengine.editor.tests",
     "rootNamespace": "",
     "references": [
-        "com.github.k_stand.ksanimatorclipboard.editor"
+        "com.github.k_stand.ksanimatorcopyengine.editor"
     ],
     "includePlatforms": [
         "Editor"

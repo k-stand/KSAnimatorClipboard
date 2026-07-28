@@ -4,26 +4,25 @@ using System.Linq;
 using NUnit.Framework;
 using UnityEditor.Animations;
 using UnityEngine;
-using com.github.k_stand.ksanimatorclipboard.editor;
-using com.github.k_stand.ksanimatorclipboard.editor.CrossController;
+using com.github.k_stand.ksanimatorcopyengine.editor;
 
-namespace com.github.k_stand.ksanimatorclipboard.editor.tests
+namespace com.github.k_stand.ksanimatorcopyengine.editor.tests
 {
-    public class AnimatorClipboardParameterConsistencyTests : AnimatorClipboardTestFixtureBase
+    public class AnimatorCopyEngineParameterConsistencyTests : AnimatorCopyEngineTestFixtureBase
     {
         [Test]
         public void FindMissingParameters_ThrowsArgumentNullException_WhenClipSetIsNull()
         {
             AnimatorController controller = Create<AnimatorController>();
-            Assert.Throws<ArgumentNullException>(() => AnimatorClipboardParameterConsistency.FindMissingParameters(null, controller));
+            Assert.Throws<ArgumentNullException>(() => AnimatorCopyEngineParameterConsistency.FindMissingParameters(null, controller));
         }
 
         [Test]
         public void FindMissingParameters_ThrowsArgumentNullException_WhenDestControllerIsNull()
         {
             AnimatorStateTransition transition = Create<AnimatorStateTransition>();
-            AnimatorCopyClipSet clipSet = AnimatorClipboard.Copy(transition);
-            Assert.Throws<ArgumentNullException>(() => AnimatorClipboardParameterConsistency.FindMissingParameters(clipSet, null));
+            AnimatorCopyClipSet clipSet = AnimatorCopyEngine.Copy(transition);
+            Assert.Throws<ArgumentNullException>(() => AnimatorCopyEngineParameterConsistency.FindMissingParameters(clipSet, null));
         }
 
         [Test]
@@ -34,9 +33,9 @@ namespace com.github.k_stand.ksanimatorclipboard.editor.tests
 
             AnimatorStateTransition transition = Create<AnimatorStateTransition>();
             transition.AddCondition(AnimatorConditionMode.Greater, 0f, "Speed");
-            AnimatorCopyClipSet clipSet = AnimatorClipboard.Copy(transition);
+            AnimatorCopyClipSet clipSet = AnimatorCopyEngine.Copy(transition);
 
-            IReadOnlyList<string> missing = AnimatorClipboardParameterConsistency.FindMissingParameters(clipSet, controller);
+            IReadOnlyList<string> missing = AnimatorCopyEngineParameterConsistency.FindMissingParameters(clipSet, controller);
 
             Assert.IsEmpty(missing);
         }
@@ -48,9 +47,9 @@ namespace com.github.k_stand.ksanimatorclipboard.editor.tests
 
             AnimatorStateTransition transition = Create<AnimatorStateTransition>();
             transition.AddCondition(AnimatorConditionMode.Greater, 0f, "Speed");
-            AnimatorCopyClipSet clipSet = AnimatorClipboard.Copy(transition);
+            AnimatorCopyClipSet clipSet = AnimatorCopyEngine.Copy(transition);
 
-            IReadOnlyList<string> missing = AnimatorClipboardParameterConsistency.FindMissingParameters(clipSet, controller);
+            IReadOnlyList<string> missing = AnimatorCopyEngineParameterConsistency.FindMissingParameters(clipSet, controller);
 
             CollectionAssert.AreEquivalent(new[] { "Speed" }, missing);
         }
@@ -67,49 +66,26 @@ namespace com.github.k_stand.ksanimatorclipboard.editor.tests
             entryTransition.AddCondition(AnimatorConditionMode.If, 0f, "Grounded");
 
             ChildAnimatorStateMachine childAnimatorStateMachine = new() { stateMachine = childStateMachine };
-            AnimatorCopyClipSet clipSet = AnimatorClipboard.Copy(childAnimatorStateMachine);
+            AnimatorCopyClipSet clipSet = AnimatorCopyEngine.Copy(childAnimatorStateMachine);
 
-            IReadOnlyList<string> missing = AnimatorClipboardParameterConsistency.FindMissingParameters(clipSet, controller);
+            IReadOnlyList<string> missing = AnimatorCopyEngineParameterConsistency.FindMissingParameters(clipSet, controller);
 
             CollectionAssert.AreEquivalent(new[] { "Grounded" }, missing);
         }
 
         [Test]
-        public void FindMissingParameters_IgnoresStateMachineBehaviour_WhenNoResolverRegistered()
+        public void FindMissingParameters_IgnoresStateMachineBehaviourReferences()
         {
             AnimatorController controller = Create<AnimatorController>();
             DummyStateMachineBehaviour behaviour = Track(ScriptableObject.CreateInstance<DummyStateMachineBehaviour>());
             AnimatorState state = Create<AnimatorState>();
             state.behaviours = new StateMachineBehaviour[] { behaviour };
             ChildAnimatorState childState = new() { state = state };
-            AnimatorCopyClipSet clipSet = AnimatorClipboard.Copy(childState);
+            AnimatorCopyClipSet clipSet = AnimatorCopyEngine.Copy(childState);
 
-            IReadOnlyList<string> missing = AnimatorClipboardParameterConsistency.FindMissingParameters(clipSet, controller);
+            IReadOnlyList<string> missing = AnimatorCopyEngineParameterConsistency.FindMissingParameters(clipSet, controller);
 
             Assert.IsEmpty(missing);
-        }
-
-        [Test]
-        public void FindMissingParameters_DetectsMissingParameter_ViaRegisteredResolver()
-        {
-            ParameterReferenceResolverRegistry.Shared.Register(new StubBehaviourResolver());
-            try
-            {
-                AnimatorController controller = Create<AnimatorController>();
-                DummyStateMachineBehaviour behaviour = Track(ScriptableObject.CreateInstance<DummyStateMachineBehaviour>());
-                AnimatorState state = Create<AnimatorState>();
-                state.behaviours = new StateMachineBehaviour[] { behaviour };
-                ChildAnimatorState childState = new() { state = state };
-                AnimatorCopyClipSet clipSet = AnimatorClipboard.Copy(childState);
-
-                IReadOnlyList<string> missing = AnimatorClipboardParameterConsistency.FindMissingParameters(clipSet, controller);
-
-                CollectionAssert.AreEquivalent(new[] { "StubParam" }, missing);
-            }
-            finally
-            {
-                ParameterReferenceResolverRegistry.Shared.Unregister(typeof(DummyStateMachineBehaviour));
-            }
         }
 
         [Test]
@@ -121,18 +97,11 @@ namespace com.github.k_stand.ksanimatorclipboard.editor.tests
             transition1.AddCondition(AnimatorConditionMode.Greater, 0f, "Speed");
             AnimatorStateTransition transition2 = Create<AnimatorStateTransition>();
             transition2.AddCondition(AnimatorConditionMode.Less, 1f, "Speed");
-            AnimatorCopyClipSet clipSet = AnimatorClipboard.Copy(new object[] { transition1, transition2 });
+            AnimatorCopyClipSet clipSet = AnimatorCopyEngine.Copy(new object[] { transition1, transition2 });
 
-            IReadOnlyList<string> missing = AnimatorClipboardParameterConsistency.FindMissingParameters(clipSet, controller);
+            IReadOnlyList<string> missing = AnimatorCopyEngineParameterConsistency.FindMissingParameters(clipSet, controller);
 
             CollectionAssert.AreEquivalent(new[] { "Speed" }, missing);
-        }
-
-        private sealed class StubBehaviourResolver : IParameterReferenceResolver
-        {
-            public Type BehaviourType => typeof(DummyStateMachineBehaviour);
-
-            public IEnumerable<string> GetReferencedParameterNames(StateMachineBehaviour behaviour) => new[] { "StubParam" };
         }
     }
 }

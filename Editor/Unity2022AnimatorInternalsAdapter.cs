@@ -6,7 +6,7 @@ using System.Reflection;
 using UnityEditor.Animations;
 using UnityEngine;
 
-namespace com.github.k_stand.ksanimatorclipboard.editor
+namespace com.github.k_stand.ksanimatorcopyengine.editor
 {
     internal sealed class Unity2022AnimatorInternalsAdapter : IAnimatorInternalsAdapter
     {
@@ -172,7 +172,7 @@ namespace com.github.k_stand.ksanimatorclipboard.editor
 
         public void Validate()
         {
-            AnimatorControllerLayer probe = new() { name = "KSAnimatorClipboard_ValidationProbe" };
+            AnimatorControllerLayer probe = new() { name = "KSAnimatorCopyEngine_ValidationProbe" };
 
             InitOverrideStateMotionPairs(probe);
             StateMotionPair[] motionPairs = GetAllOverrideStateMotionPairs(probe)

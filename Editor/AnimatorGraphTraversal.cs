@@ -4,7 +4,7 @@ using System.Linq;
 using UnityEditor.Animations;
 using UnityEngine;
 
-namespace com.github.k_stand.ksanimatorclipboard.editor
+namespace com.github.k_stand.ksanimatorcopyengine.editor
 {
     // コピー範囲(IAnimatorCopyObjectKind.GetCloneScope)を求めるための、StateMachine配下オブジェクトの列挙。
     // 同じくグラフを辿るAnimatorGraphSchemaとは用途が異なるため列挙範囲も異なる: behaviours(AnimatorStateMachine/

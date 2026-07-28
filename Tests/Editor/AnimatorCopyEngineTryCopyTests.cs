@@ -1,18 +1,18 @@
 using NUnit.Framework;
 using UnityEditor.Animations;
 using UnityEngine;
-using com.github.k_stand.ksanimatorclipboard.editor;
+using com.github.k_stand.ksanimatorcopyengine.editor;
 
-namespace com.github.k_stand.ksanimatorclipboard.editor.tests
+namespace com.github.k_stand.ksanimatorcopyengine.editor.tests
 {
-    public class AnimatorClipboardTryCopyTests : AnimatorClipboardTestFixtureBase
+    public class AnimatorCopyEngineTryCopyTests : AnimatorCopyEngineTestFixtureBase
     {
         [Test]
         public void TryCopy_Layers_ReturnsFalse_WhenGivenEmptyCollection()
         {
             AnimatorController parentController = Create<AnimatorController>();
 
-            bool success = AnimatorClipboard.TryCopy(System.Array.Empty<AnimatorControllerLayer>(), parentController, out AnimatorCopyClipSet result);
+            bool success = AnimatorCopyEngine.TryCopy(System.Array.Empty<AnimatorControllerLayer>(), parentController, out AnimatorCopyClipSet result);
 
             Assert.IsFalse(success);
             Assert.IsNull(result);
@@ -23,7 +23,7 @@ namespace com.github.k_stand.ksanimatorclipboard.editor.tests
         {
             AnimatorStateMachine ancestorStateMachine = Create<AnimatorStateMachine>();
 
-            bool success = AnimatorClipboard.TryCopy(System.Array.Empty<object>(), ancestorStateMachine, out AnimatorCopyClipSet result);
+            bool success = AnimatorCopyEngine.TryCopy(System.Array.Empty<object>(), ancestorStateMachine, out AnimatorCopyClipSet result);
 
             Assert.IsFalse(success);
             Assert.IsNull(result);
@@ -32,7 +32,7 @@ namespace com.github.k_stand.ksanimatorclipboard.editor.tests
         [Test]
         public void TryCopy_Behaviours_ReturnsFalse_WhenGivenEmptyCollection()
         {
-            bool success = AnimatorClipboard.TryCopy(System.Array.Empty<StateMachineBehaviour>(), out AnimatorCopyClipSet result);
+            bool success = AnimatorCopyEngine.TryCopy(System.Array.Empty<StateMachineBehaviour>(), out AnimatorCopyClipSet result);
 
             Assert.IsFalse(success);
             Assert.IsNull(result);
@@ -45,7 +45,7 @@ namespace com.github.k_stand.ksanimatorclipboard.editor.tests
             AnimatorControllerLayer layer = new() { name = "Layer1", stateMachine = stateMachine };
             AnimatorController parentController = Create<AnimatorController>();
 
-            bool success = AnimatorClipboard.TryCopy(layer, parentController, out AnimatorCopyClipSet result);
+            bool success = AnimatorCopyEngine.TryCopy(layer, parentController, out AnimatorCopyClipSet result);
 
             Assert.IsTrue(success);
             Assert.IsNotNull(result);
@@ -57,7 +57,7 @@ namespace com.github.k_stand.ksanimatorclipboard.editor.tests
         {
             AnimatorController parentController = Create<AnimatorController>();
 
-            Assert.Throws<System.ArgumentException>(() => AnimatorClipboard.Copy(System.Array.Empty<AnimatorControllerLayer>(), parentController));
+            Assert.Throws<System.ArgumentException>(() => AnimatorCopyEngine.Copy(System.Array.Empty<AnimatorControllerLayer>(), parentController));
         }
     }
 }
