@@ -51,7 +51,7 @@ AnimatorCopyEngine.PasteIntoStateMachine(cloned, destStateMachine);
 失敗しても例外を発生させたくない場合は、`Copy`/`PasteLayers`/`PasteIntoLayer`などに対応する`TryCopy`/`TryPasteLayers`/`TryPasteIntoLayer`(戻り値`bool`、結果は`out`引数)を使用してください。
 
 ## License
-[MIT License](https://github.com/k-stand/KSAnimatorClipboard/blob/main/LICENSE.txt)
+[MIT License](https://github.com/k-stand/KSAnimatorCopyEngine/blob/main/LICENSE.txt)
 
 ## 更新履歴
 ### [2026-07-28] 0.7.0
